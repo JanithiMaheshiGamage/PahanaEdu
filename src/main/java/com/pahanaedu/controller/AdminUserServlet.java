@@ -7,7 +7,6 @@ import javax.servlet.*;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 
 @WebServlet("/admin/manage-users")
@@ -22,7 +21,9 @@ public class AdminUserServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        HttpSession session = request.getSession();
         String search = request.getParameter("search");
+
         try {
             List<User> users;
             if (search != null && !search.trim().isEmpty()) {
@@ -32,8 +33,7 @@ public class AdminUserServlet extends HttpServlet {
             }
             request.setAttribute("users", users);
         } catch (Exception e) {
-            e.printStackTrace();
-            request.setAttribute("error", "Unable to load users.");
+            session.setAttribute("error", "Error loading users: " + e.getMessage());
         }
 
         RequestDispatcher dispatcher = request.getRequestDispatcher("/admin_manage_users.jsp");
@@ -43,34 +43,77 @@ public class AdminUserServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        String action = request.getParameter("action");
-
-        String idStr = request.getParameter("id");
-        String fullName = request.getParameter("fullName");
-        String username = request.getParameter("username");
-        String password = request.getParameter("password");
-        String role = request.getParameter("role");
-        boolean status = "on".equals(request.getParameter("status"));
-
-        User user = new User();
-        user.setFullName(fullName);
-        user.setUsername(username);
-        user.setPassword(password);
-        user.setRole(role);
-        user.setStatus(status);
+        HttpSession session = request.getSession();
 
         try {
-            if ("update".equals(action) && idStr != null && !idStr.isEmpty()) {
-                user.setId(Integer.parseInt(idStr));
-                userDAO.updateUser(user);
-            } else {
-                userDAO.insertUser(user);
+            String action = request.getParameter("action");
+            User user = new User();
+            user.setFullName(request.getParameter("fullname"));
+            user.setUsername(request.getParameter("username"));
+            user.setEmail(request.getParameter("email"));
+            user.setPassword(request.getParameter("password"));
+            user.setRole(request.getParameter("role"));
+            user.setStatus("on".equals(request.getParameter("status")));
+
+            if ("add".equals(action)) {
+                // Validate for new user
+                if (userDAO.usernameExists(user.getUsername())) {
+                    session.setAttribute("error", "Username already exists");
+                    response.sendRedirect("admin_manage_users.jsp");
+                    return;
+                }
+
+                if (userDAO.emailExists(user.getEmail())) {
+                    session.setAttribute("error", "Email already exists");
+                    response.sendRedirect("admin_manage_users.jsp");
+                    return;
+                }
+
+                boolean success = userDAO.insertUser(user);
+                if (success) {
+                    session.setAttribute("success", "User added successfully!");
+                } else {
+                    session.setAttribute("error", "Failed to add user");
+                }
             }
-            response.sendRedirect("manage-users");
-        } catch (Exception e) { // or just catch Exception
-            e.printStackTrace();
-            request.setAttribute("error", "Database error: " + e.getMessage());
-            doGet(request, response);
+            else if ("update".equals(action)) {
+                String userId = request.getParameter("userId");
+                if (userId != null && !userId.isEmpty()) {
+                    user.setId(Integer.parseInt(userId));
+
+                    // Get existing user data for validation
+                    User existingUser = userDAO.getUserById(user.getId());
+                    if (existingUser == null) {
+                        session.setAttribute("error", "User not found");
+                        response.sendRedirect("admin_manage_users.jsp");
+                        return;
+                    }
+
+                    // Check if username is being changed to an existing one
+                    if (!existingUser.getUsername().equals(user.getUsername()) &&
+                            userDAO.usernameExists(user.getUsername())) {
+                        session.setAttribute("error", "Username already exists");
+                        response.sendRedirect("admin_manage_users.jsp");
+                        return;
+                    }
+
+                    // Check if email is being changed to an existing one
+                    if (!existingUser.getEmail().equals(user.getEmail()) &&
+                            userDAO.emailExists(user.getEmail())) {
+                        session.setAttribute("error", "Email already exists");
+                        response.sendRedirect("admin_manage_users.jsp");
+                        return;
+                    }
+
+                    userDAO.updateUser(user);
+                    session.setAttribute("success", "User updated successfully!");
+                }
+            }
+
+            response.sendRedirect("admin_manage_users.jsp");
+        } catch (Exception e) {
+            session.setAttribute("error", "Error: " + e.getMessage());
+            response.sendRedirect("admin_manage_users.jsp");
         }
     }
 }

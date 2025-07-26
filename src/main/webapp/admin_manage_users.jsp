@@ -17,6 +17,12 @@
     UserDAO userDAO = new UserDAO();
     List<User> users = userDAO.getAllUsers();
 
+    // Notification variables
+    String success = (String) httpSession.getAttribute("success");
+    String error = (String) httpSession.getAttribute("error");
+    if (success != null) httpSession.removeAttribute("success");
+    if (error != null) httpSession.removeAttribute("error");
+
     // Handle form submissions
     if ("POST".equalsIgnoreCase(request.getMethod())) {
         String action = request.getParameter("action");
@@ -25,6 +31,7 @@
         if ("add".equals(action) || "update".equals(action)) {
             user.setFullName(request.getParameter("fullname"));
             user.setUsername(request.getParameter("username"));
+            user.setEmail(request.getParameter("email"));
             user.setPassword(request.getParameter("password"));
             user.setRole(request.getParameter("role"));
             user.setStatus("on".equals(request.getParameter("status")));
@@ -32,12 +39,15 @@
             if ("update".equals(action)) {
                 user.setId(Integer.parseInt(request.getParameter("userId")));
                 userDAO.updateUser(user);
+                httpSession.setAttribute("success", "User updated successfully!");
             } else {
                 userDAO.insertUser(user);
+                httpSession.setAttribute("success", "User added successfully!");
             }
 
             // Refresh user list after update
-            users = userDAO.getAllUsers();
+            response.sendRedirect("admin_manage_users.jsp");
+            return;
         }
     }
 
@@ -58,6 +68,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
+
+<!-- Notification Messages -->
+<% if (success != null) { %>
+<div class="notification success">
+    <span><%= success %></span>
+    <button class="close-btn">&times;</button>
+</div>
+<% } %>
+<% if (error != null) { %>
+<div class="notification error">
+    <span><%= error %></span>
+    <button class="close-btn">&times;</button>
+</div>
+<% } %>
+
 <div class="admin-container">
     <!-- Sidebar -->
     <div class="sidebar">
@@ -117,7 +142,7 @@
             <h1 class="page-title">System Users</h1>
 
             <!-- User Form -->
-            <form method="post" class="user-form">
+            <form method="post" class="user-form" onsubmit="return validateForm()">
                 <input type="hidden" id="userId" name="userId">
                 <input type="hidden" name="action" id="formAction" value="add">
 
@@ -134,8 +159,16 @@
 
                 <div class="form-row">
                     <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" placeholder="Enter email" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
                         <label for="password">Password</label>
                         <input type="password" id="password" name="password" placeholder="Enter password" required>
+                        <small class="form-text">Must be at least 8 characters with uppercase, lowercase, and numbers</small>
                     </div>
                     <div class="form-group">
                         <label for="role">User Role</label>
@@ -182,7 +215,7 @@
                 <table class="user-table">
                     <thead>
                     <tr>
-                        <th colspan="6" style="text-align: right;">
+                        <th colspan="7" style="text-align: right;">
                             <button type="button" class="btn btn-primary" id="newUserBtn">
                                 <i class="fas fa-plus"></i> New User
                             </button>
@@ -192,6 +225,7 @@
                         <th>User ID</th>
                         <th>Full Name</th>
                         <th>Username</th>
+                        <th>Email</th>
                         <th>User Role</th>
                         <th>Status</th>
                         <th>Action</th>
@@ -204,6 +238,7 @@
                         <td><%= user.getId() %></td>
                         <td><%= user.getFullName() %></td>
                         <td><%= user.getUsername() %></td>
+                        <td class="email-cell"><%= user.getEmail() %></td>
                         <td><%= user.getRole() %></td>
                         <td>
                                 <span class="status-badge <%= user.isStatus() ? "status-active" : "status-inactive" %>">
@@ -215,7 +250,7 @@
                     <% } %>
                     <% } else { %>
                     <tr>
-                        <td colspan="6" style="text-align: center;">No users found</td>
+                        <td colspan="7" style="text-align: center;">No users found</td>
                     </tr>
                     <% } %>
                     </tbody>
@@ -227,6 +262,55 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+
+        // Notification handling
+        document.querySelectorAll('.close-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const notification = this.closest('.notification');
+                notification.classList.add('fade-out');
+                setTimeout(() => notification.remove(), 500);
+            });
+        });
+
+        // Auto-close notifications after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.notification').forEach(notification => {
+                notification.classList.add('fade-out');
+                setTimeout(() => notification.remove(), 500);
+            });
+        }, 5000);
+
+        // Form validation
+        function validateUserForm() {
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            if (!username || !email || !password || !role) {
+                alert('Please fill all required fields');
+                return false;
+            }
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                alert('Please enter a valid email address');
+                return false;
+            }
+
+            if (password.length < 8 ||
+                !/[A-Z]/.test(password) ||
+                !/[a-z]/.test(password) ||
+                !/[0-9]/.test(password)) {
+                alert('Password must be at least 8 characters with uppercase, lowercase, and numbers');
+                return false;
+            }
+
+            return true;
+        }
+
+        // Update the form's onsubmit to use the correct function
+        document.querySelector('.user-form').onsubmit = validateUserForm;
+
         // Update current date and time
         function updateDateTime() {
             const now = new Date();
@@ -243,6 +327,18 @@
         updateDateTime();
         setInterval(updateDateTime, 60000);
 
+        // Form validation
+        function validateForm() {
+            const email = document.getElementById('email').value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address');
+                return false;
+            }
+            return true;
+        }
+
         //add user
         document.getElementById('newUserBtn').addEventListener('click', resetFormToAddMode);
 
@@ -252,24 +348,16 @@
         });
 
         function resetFormToAddMode() {
-            form.reset();
-            toggleSwitch.checked = true;
-            toggleStatus.textContent = 'Active';
-            userIdInput.value = '';
-            formAction.value = 'add';
-            addBtn.style.display = 'block';
-            updateBtn.style.display = 'none';
+            document.querySelector('.user-form').reset();
+            document.getElementById('status').checked = true;
+            document.getElementById('statusLabel').textContent = 'Active';
+            document.getElementById('userId').value = '';
+            document.getElementById('formAction').value = 'add';
+            document.getElementById('addBtn').style.display = 'block';
+            document.getElementById('updateBtn').style.display = 'none';
             document.getElementById('cancelEditBtn').style.display = 'none';
             document.querySelector('.page-title').textContent = 'System Users';
         }
-
-// Modify your existing edit button handler:
-        editButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                // ... existing edit code ...
-                document.getElementById('cancelEditBtn').style.display = 'block';
-            });
-        });
 
         // Toggle switch functionality
         const toggleSwitch = document.getElementById('status');
@@ -293,10 +381,11 @@
 
                 document.getElementById('fullname').value = cells[1].textContent;
                 document.getElementById('username').value = cells[2].textContent;
+                document.getElementById('email').value = cells[3].textContent;
                 document.getElementById('password').value = '';
 
                 const roleSelect = document.getElementById('role');
-                const role = cells[3].textContent;
+                const role = cells[4].textContent;
                 for (let i = 0; i < roleSelect.options.length; i++) {
                     if (roleSelect.options[i].text === role) {
                         roleSelect.selectedIndex = i;
@@ -304,7 +393,7 @@
                     }
                 }
 
-                const status = cells[4].querySelector('.status-badge').textContent.trim();
+                const status = cells[5].querySelector('.status-badge').textContent.trim();
                 toggleSwitch.checked = status === 'Active';
                 toggleStatus.textContent = status;
 
@@ -312,6 +401,7 @@
                 formAction.value = 'update';
                 addBtn.style.display = 'none';
                 updateBtn.style.display = 'block';
+                document.getElementById('cancelEditBtn').style.display = 'block';
                 document.querySelector('.page-title').textContent = 'Update User';
             });
         });
@@ -326,6 +416,7 @@
             formAction.value = 'add';
             addBtn.style.display = 'block';
             updateBtn.style.display = 'none';
+            document.getElementById('cancelEditBtn').style.display = 'none';
             document.querySelector('.page-title').textContent = 'System Users';
         });
     });

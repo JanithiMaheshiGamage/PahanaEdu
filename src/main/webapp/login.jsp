@@ -33,23 +33,23 @@
                 <input type="password" id="password" name="password" placeholder="Enter your password" required>
             </div>
 
-            <% String message = request.getParameter("message"); %>
             <%
-                if ("logout".equals(message)) {
+                String message = request.getParameter("message");
+                String reset = request.getParameter("reset");
             %>
-            <p style="color:green;">Logged out successfully.</p>
-            <%
-            } else if ("invalid".equals(message)) {
-            %>
-            <p style="color:red;">Invalid username or password. Please try again.</p>
-            <%
-                }
-            %>
+
+            <% if ("logout".equals(message)) { %>
+            <div class="alert alert-success">Logged out successfully.</div>
+            <% } else if ("invalid".equals(message)) { %>
+            <div class="alert alert-danger">Invalid username or password. Please try again.</div>
+            <% } else if ("success".equals(reset)) { %>
+            <div class="alert alert-success">Password reset successfully. Please login with your new password.</div>
+            <% } %>
 
             <button type="submit" class="login-btn">LOGIN</button>
 
             <div class="forgot-password">
-                <a href="#">Forgot Password?</a>
+                <a href="password_reset.jsp">Forgot Password?</a>
             </div>
         </form>
     </div>

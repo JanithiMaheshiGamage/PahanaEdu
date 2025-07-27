@@ -1,6 +1,7 @@
 <%@ page import="com.pahanaedu.dao.UserDAO" %>
 <%@ page import="com.pahanaedu.model.User" %>
 <%@ page import="java.util.List" %>
+<%@ page import="java.util.ArrayList" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
     // Check if user is logged in
@@ -15,7 +16,15 @@
     }
 
     UserDAO userDAO = new UserDAO();
-    List<User> users = userDAO.getAllUsers();
+    List<User> users = null;
+
+    // First try to get users from request attribute
+    users = (List<User>) request.getAttribute("users");
+
+    // If not found in request, get from DAO
+    if (users == null) {
+        users = userDAO.getAllUsers();
+    }
 
     // Notification variables
     String success = (String) httpSession.getAttribute("success");
@@ -23,40 +32,13 @@
     if (success != null) httpSession.removeAttribute("success");
     if (error != null) httpSession.removeAttribute("error");
 
-    // Handle form submissions
-    if ("POST".equalsIgnoreCase(request.getMethod())) {
-        String action = request.getParameter("action");
-        User user = new User();
-
-        if ("add".equals(action) || "update".equals(action)) {
-            user.setFullName(request.getParameter("fullname"));
-            user.setUsername(request.getParameter("username"));
-            user.setEmail(request.getParameter("email"));
-            user.setPassword(request.getParameter("password"));
-            user.setRole(request.getParameter("role"));
-            user.setStatus("on".equals(request.getParameter("status")));
-
-            if ("update".equals(action)) {
-                user.setId(Integer.parseInt(request.getParameter("userId")));
-                userDAO.updateUser(user);
-                httpSession.setAttribute("success", "User updated successfully!");
-            } else {
-                userDAO.insertUser(user);
-                httpSession.setAttribute("success", "User added successfully!");
-            }
-
-            // Refresh user list after update
-            response.sendRedirect("admin_manage_users.jsp");
-            return;
-        }
-    }
-
     // Handle search
     String searchKeyword = request.getParameter("search");
     if (searchKeyword != null && !searchKeyword.isEmpty()) {
         users = userDAO.searchUsers(searchKeyword);
     }
 %>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -142,7 +124,7 @@
             <h1 class="page-title">System Users</h1>
 
             <!-- User Form -->
-            <form method="post" class="user-form" onsubmit="return validateForm()">
+            <form method="post" class="user-form" onsubmit="return validateForm()" action="${pageContext.request.contextPath}/manage-users">
                 <input type="hidden" id="userId" name="userId">
                 <input type="hidden" name="action" id="formAction" value="add">
 
@@ -162,7 +144,13 @@
                         <label for="email">Email</label>
                         <input type="email" id="email" name="email" placeholder="Enter email" required>
                     </div>
+
+                    <div class="form-group">
+                        <label for="employeeNo">Employee Number</label>
+                        <input type="text" id="employeeNo" name="employeeNo" placeholder="Enter employee number" required>
+                    </div>
                 </div>
+
 
                 <div class="form-row">
                     <div class="form-group">
@@ -215,7 +203,7 @@
                 <table class="user-table">
                     <thead>
                     <tr>
-                        <th colspan="7" style="text-align: right;">
+                        <th colspan="9" style="text-align: right;"> <!-- Changed from 8 to 9 -->
                             <button type="button" class="btn btn-primary" id="newUserBtn">
                                 <i class="fas fa-plus"></i> New User
                             </button>
@@ -224,6 +212,7 @@
                     <tr>
                         <th>User ID</th>
                         <th>Full Name</th>
+                        <th>Employee No</th>
                         <th>Username</th>
                         <th>Email</th>
                         <th>User Role</th>
@@ -237,6 +226,7 @@
                     <tr>
                         <td><%= user.getId() %></td>
                         <td><%= user.getFullName() %></td>
+                        <td><%= user.getEmployeeNo() %></td>
                         <td><%= user.getUsername() %></td>
                         <td class="email-cell"><%= user.getEmail() %></td>
                         <td><%= user.getRole() %></td>
@@ -246,11 +236,16 @@
                                 </span>
                         </td>
                         <td><button class="edit-btn" data-id="<%= user.getId() %>">Edit</button></td>
+                        <td>
+                            <button class="delete-btn" data-id="<%= user.getId() %>">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </button>
+                        </td>
                     </tr>
                     <% } %>
                     <% } else { %>
                     <tr>
-                        <td colspan="7" style="text-align: center;">No users found</td>
+                        <td colspan="9" style="text-align: center;">No users found</td>
                     </tr>
                     <% } %>
                     </tbody>
@@ -262,7 +257,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-
         // Notification handling
         document.querySelectorAll('.close-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -284,24 +278,28 @@
         function validateUserForm() {
             const username = document.getElementById('username').value.trim();
             const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
+            const password = document.getElementById('password');
             const role = document.getElementById('role').value;
+            const employeeNo = document.getElementById('employeeNo').value.trim();
+            const isEditMode = document.getElementById('formAction').value === 'update';
 
-            if (!username || !email || !password || !role) {
+            if (!username || !email || !role || !employeeNo) {
                 alert('Please fill all required fields');
+                return false;
+            }
+
+            // Skip password validation in edit mode (since it's disabled)
+            if (!isEditMode && (!password.value ||
+                password.value.length < 8 ||
+                !/[A-Z]/.test(password.value) ||
+                !/[a-z]/.test(password.value) ||
+                !/[0-9]/.test(password.value))) {
+                alert('Password must be at least 8 characters with uppercase, lowercase, and numbers');
                 return false;
             }
 
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 alert('Please enter a valid email address');
-                return false;
-            }
-
-            if (password.length < 8 ||
-                !/[A-Z]/.test(password) ||
-                !/[a-z]/.test(password) ||
-                !/[0-9]/.test(password)) {
-                alert('Password must be at least 8 characters with uppercase, lowercase, and numbers');
                 return false;
             }
 
@@ -327,18 +325,6 @@
         updateDateTime();
         setInterval(updateDateTime, 60000);
 
-        // Form validation
-        function validateForm() {
-            const email = document.getElementById('email').value;
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            if (!emailRegex.test(email)) {
-                alert('Please enter a valid email address');
-                return false;
-            }
-            return true;
-        }
-
         //add user
         document.getElementById('newUserBtn').addEventListener('click', resetFormToAddMode);
 
@@ -353,6 +339,14 @@
             document.getElementById('statusLabel').textContent = 'Active';
             document.getElementById('userId').value = '';
             document.getElementById('formAction').value = 'add';
+
+            // Re-enable password field for new users
+            const passwordField = document.getElementById('password');
+            passwordField.disabled = false;
+            passwordField.placeholder = "Enter password";
+            passwordField.required = true;
+
+            // Update UI
             document.getElementById('addBtn').style.display = 'block';
             document.getElementById('updateBtn').style.display = 'none';
             document.getElementById('cancelEditBtn').style.display = 'none';
@@ -379,26 +373,39 @@
                 const row = this.closest('tr');
                 const cells = row.querySelectorAll('td');
 
+                // Fill form fields
                 document.getElementById('fullname').value = cells[1].textContent;
-                document.getElementById('username').value = cells[2].textContent;
-                document.getElementById('email').value = cells[3].textContent;
-                document.getElementById('password').value = '';
+                document.getElementById('employeeNo').value = cells[2].textContent;
+                document.getElementById('username').value = cells[3].textContent;
+                document.getElementById('email').value = cells[4].textContent;
 
+                // Disable password field and set placeholder
+                const passwordField = document.getElementById('password');
+                passwordField.disabled = true;
+                passwordField.value = ''; // Clear the password field for security
+                passwordField.placeholder = "Password cannot be changed by admin";
+                passwordField.required = false;
+
+                // Set role dropdown - FIXED THIS PART
                 const roleSelect = document.getElementById('role');
-                const role = cells[4].textContent;
+                const role = cells[5].textContent.trim().toLowerCase(); // Convert to lowercase to match option values
                 for (let i = 0; i < roleSelect.options.length; i++) {
-                    if (roleSelect.options[i].text === role) {
+                    if (roleSelect.options[i].value === role) {
                         roleSelect.selectedIndex = i;
                         break;
                     }
                 }
 
-                const status = cells[5].querySelector('.status-badge').textContent.trim();
+                // Set status toggle
+                const status = cells[6].querySelector('.status-badge').textContent.trim();
                 toggleSwitch.checked = status === 'Active';
                 toggleStatus.textContent = status;
 
+                // Set hidden fields
                 userIdInput.value = cells[0].textContent;
                 formAction.value = 'update';
+
+                // Update UI
                 addBtn.style.display = 'none';
                 updateBtn.style.display = 'block';
                 document.getElementById('cancelEditBtn').style.display = 'block';
@@ -406,18 +413,42 @@
             });
         });
 
+        // Delete button functionality
+        const deleteButtons = document.querySelectorAll('.delete-btn');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.getAttribute('data-id');
+                if (confirm('Are you sure you want to delete this user?')) {
+                    // Create a form to submit
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '${pageContext.request.contextPath}/manage-users';
+
+                    // Add action parameter
+                    const actionInput = document.createElement('input');
+                    actionInput.type = 'hidden';
+                    actionInput.name = 'action';
+                    actionInput.value = 'delete';
+                    form.appendChild(actionInput);
+
+                    // Add userId parameter
+                    const userIdInput = document.createElement('input');
+                    userIdInput.type = 'hidden';
+                    userIdInput.name = 'userId';
+                    userIdInput.value = userId;
+                    form.appendChild(userIdInput);
+
+                    // Submit the form
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        });
+
         // Clear button functionality
         const clearButton = document.getElementById('clearBtn');
         clearButton.addEventListener('click', function() {
-            form.reset();
-            toggleSwitch.checked = true;
-            toggleStatus.textContent = 'Active';
-            userIdInput.value = '';
-            formAction.value = 'add';
-            addBtn.style.display = 'block';
-            updateBtn.style.display = 'none';
-            document.getElementById('cancelEditBtn').style.display = 'none';
-            document.querySelector('.page-title').textContent = 'System Users';
+            resetFormToAddMode();
         });
     });
 </script>

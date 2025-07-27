@@ -7,10 +7,12 @@ import org.mindrot.jbcrypt.BCrypt;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class UserDAO {
 
-    // Work factor for BCrypt (higher is more secure but slower)
+    private static final Logger logger = Logger.getLogger(UserDAO.class.getName());
     private static final int BCRYPT_WORKLOAD = 12;
 
     public String getUserRole(String username, String password) {
@@ -28,14 +30,14 @@ public class UserDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error getting user role", e);
         }
         return null;
     }
 
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT user_id as id, name as full_name, username, email, role, " +
+        String sql = "SELECT user_id as id, name as full_name, username, email, employee_no, role, " +
                 "CASE WHEN status = 'active' THEN true ELSE false END as status " +
                 "FROM system_users";
 
@@ -48,19 +50,20 @@ public class UserDAO {
                 user.setId(rs.getInt("id"));
                 user.setFullName(rs.getString("full_name"));
                 user.setUsername(rs.getString("username"));
-                user.setEmail(rs.getString("email"));  // New field
+                user.setEmail(rs.getString("email"));
+                user.setEmployeeNo(rs.getString("employee_no"));
                 user.setRole(rs.getString("role"));
                 user.setStatus(rs.getBoolean("status"));
                 users.add(user);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error getting all users", e);
         }
         return users;
     }
 
     public User getUserById(int id) {
-        String sql = "SELECT user_id as id, name as full_name, username, email, role, " +
+        String sql = "SELECT user_id as id, name as full_name, username, email, employee_no, role," +
                 "CASE WHEN status = 'active' THEN true ELSE false END as status " +
                 "FROM system_users WHERE user_id = ?";
 
@@ -76,39 +79,40 @@ public class UserDAO {
                 user.setFullName(rs.getString("full_name"));
                 user.setUsername(rs.getString("username"));
                 user.setEmail(rs.getString("email"));
+                user.setEmployeeNo(rs.getString("employee_no"));
                 user.setRole(rs.getString("role"));
                 user.setStatus(rs.getBoolean("status"));
                 return user;
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error getting user by ID", e);
         }
         return null;
     }
 
     public boolean insertUser(User user) {
-        String sql = "INSERT INTO system_users (name, username, email, password, role, status) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO system_users (name, username, email, employee_no, password, role, status) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            // Ensure auto-commit is enabled
-            conn.setAutoCommit(true);
-
+            // Hash the password before storing
             String hashedPassword = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt(BCRYPT_WORKLOAD));
 
             stmt.setString(1, user.getFullName());
             stmt.setString(2, user.getUsername());
             stmt.setString(3, user.getEmail());
-            stmt.setString(4, hashedPassword);
-            stmt.setString(5, user.getRole());
-            stmt.setString(6, user.isStatus() ? "active" : "inactive");
+            stmt.setString(4, user.getEmployeeNo());
+            stmt.setString(5, hashedPassword);
+            stmt.setString(6, user.getRole());
+            stmt.setString(7, user.isStatus() ? "active" : "inactive");
+             // Add employee number
 
             int affectedRows = stmt.executeUpdate();
 
             if (affectedRows == 0) {
-                throw new SQLException("Creating user failed, no rows affected.");
+                return false;
             }
 
             try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
@@ -116,20 +120,16 @@ public class UserDAO {
                     user.setId(generatedKeys.getInt(1));
                     return true;
                 }
-                else {
-                    throw new SQLException("Creating user failed, no ID obtained.");
-                }
             }
+            return true;
         } catch (SQLException e) {
-            // Log the full error
-            System.err.println("Error inserting user:");
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error inserting user: " + user.toString(), e);
             return false;
         }
     }
 
     public void updateUser(User user) {
-        String sql = "UPDATE system_users SET name=?, username=?, email=?, role=?, status=? " +
+        String sql = "UPDATE system_users SET name=?, username=?, email=?, employee_no=?, role=?, status=? " +
                 "WHERE user_id=?";
 
         try (Connection conn = DBConnection.getConnection();
@@ -137,15 +137,33 @@ public class UserDAO {
 
             stmt.setString(1, user.getFullName());
             stmt.setString(2, user.getUsername());
-            stmt.setString(3, user.getEmail());  // New field
-            stmt.setString(4, user.getRole());
-            stmt.setString(5, user.isStatus() ? "active" : "inactive");
-            stmt.setInt(6, user.getId());
+            stmt.setString(3, user.getEmail());
+            stmt.setString(4, user.getEmployeeNo());
+            stmt.setString(5, user.getRole());
+            stmt.setString(6, user.isStatus() ? "active" : "inactive");
+            stmt.setInt(7, user.getId());
 
             stmt.executeUpdate();
 
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    public boolean deleteUser(int userId) {
+        String sql = "DELETE FROM system_users WHERE user_id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, userId);
+            int affectedRows = stmt.executeUpdate();
+            logger.info("Deleted " + affectedRows + " rows for user ID: " + userId);
+            return affectedRows > 0;
+
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error deleting user with ID: " + userId, e);
+            return false;
         }
     }
 
@@ -167,7 +185,7 @@ public class UserDAO {
     }
 
     public User getUserByCredentials(String username, String password) {
-        String sql = "SELECT user_id as id, name as full_name, username, email, password, role, " +
+        String sql = "SELECT user_id as id, name as full_name, username, email, employee_no, password, role, " +
                 "CASE WHEN status = 'active' THEN true ELSE false END as status " +
                 "FROM system_users WHERE username = ?";
 
@@ -184,14 +202,15 @@ public class UserDAO {
                     user.setId(rs.getInt("id"));
                     user.setFullName(rs.getString("full_name"));
                     user.setUsername(rs.getString("username"));
-                    user.setEmail(rs.getString("email"));  // New field
+                    user.setEmail(rs.getString("email"));
+                    user.setEmployeeNo(rs.getString("employee_no"));
                     user.setRole(rs.getString("role"));
                     user.setStatus(rs.getBoolean("status"));
                     return user;
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error getting user credentials", e);
         }
         return null;
     }
@@ -258,9 +277,10 @@ public class UserDAO {
 
     public List<User> searchUsers(String keyword) {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT user_id as id, name as full_name, username, email, role, " +
+        String sql = "SELECT user_id as id, name as full_name, username, email, employee_no, role, " +
                 "CASE WHEN status = 'active' THEN true ELSE false END as status " +
-                "FROM system_users WHERE username LIKE ? OR name LIKE ? OR email LIKE ? OR CAST(user_id AS CHAR) LIKE ?";
+                "FROM system_users WHERE username LIKE ? OR name LIKE ? OR email LIKE ? " +
+                "OR employee_no LIKE ? OR CAST(user_id AS CHAR) LIKE ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -270,6 +290,7 @@ public class UserDAO {
             stmt.setString(2, search);
             stmt.setString(3, search);
             stmt.setString(4, search);
+            stmt.setString(5, search);
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
@@ -277,13 +298,14 @@ public class UserDAO {
                 user.setId(rs.getInt("id"));
                 user.setFullName(rs.getString("full_name"));
                 user.setUsername(rs.getString("username"));
-                user.setEmail(rs.getString("email"));  // New field
+                user.setEmail(rs.getString("email"));
+                user.setEmployeeNo(rs.getString("employee_no"));
                 user.setRole(rs.getString("role"));
                 user.setStatus(rs.getBoolean("status"));
                 users.add(user);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error searching users", e);
         }
         return users;
     }

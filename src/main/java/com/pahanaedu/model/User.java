@@ -1,13 +1,20 @@
 package com.pahanaedu.model;
 
+import java.util.Objects;
+
 public class User {
     private int id;
     private String fullName;
     private String username;
     private String email;
     private String password;
+    private String employeeNo;
     private String role;
-    private boolean status; // <- Make sure it's a boolean
+    private boolean status;
+
+    // Default constructor
+    public User() {
+    }
 
     // Getters and setters
     public int getId() {
@@ -50,6 +57,14 @@ public class User {
         this.password = password;
     }
 
+    public String getEmployeeNo() {
+        return employeeNo;
+    }
+
+    public void setEmployeeNo(String employeeNo) {
+        this.employeeNo = employeeNo;
+    }
+
     public String getRole() {
         return role;
     }
@@ -64,5 +79,35 @@ public class User {
 
     public void setStatus(boolean status) {
         this.status = status;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", fullName='" + fullName + '\'' +
+                ", username='" + username + '\'' +
+                ", email='" + email + '\'' +
+                ", role='" + role + '\'' +
+                ", status=" + status +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return id == user.id &&
+                status == user.status &&
+                Objects.equals(fullName, user.fullName) &&
+                Objects.equals(username, user.username) &&
+                Objects.equals(email, user.email) &&
+                Objects.equals(role, user.role);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, fullName, username, email, role, status);
     }
 }

@@ -18,7 +18,6 @@ public class LoginServlet extends HttpServlet {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
-        // Get both role and full name from the database
         if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
             response.sendRedirect("login.jsp?message=empty");
             return;

@@ -90,6 +90,34 @@ public class UserDAO {
         return null;
     }
 
+    public User getUserByEmail(String email) {
+        String sql = "SELECT user_id as id, name as full_name, username, email, employee_no, role, " +
+                "CASE WHEN status = 'active' THEN true ELSE false END as status " +
+                "FROM system_users WHERE email = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, email);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                User user = new User();
+                user.setId(rs.getInt("id"));
+                user.setFullName(rs.getString("full_name"));
+                user.setUsername(rs.getString("username"));
+                user.setEmail(rs.getString("email"));
+                user.setEmployeeNo(rs.getString("employee_no"));
+                user.setRole(rs.getString("role"));
+                user.setStatus(rs.getBoolean("status"));
+                return user;
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error getting user by email", e);
+        }
+        return null;
+    }
+
     public boolean insertUser(User user) {
         String sql = "INSERT INTO system_users (name, username, email, employee_no, password, role, status) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -182,6 +210,34 @@ public class UserDAO {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public User getUserByUsername(String username) {
+        String sql = "SELECT user_id as id, name as full_name, username, email, employee_no, role, " +
+                "CASE WHEN status = 'active' THEN true ELSE false END as status " +
+                "FROM system_users WHERE username = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, username);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                User user = new User();
+                user.setId(rs.getInt("id"));
+                user.setFullName(rs.getString("full_name"));
+                user.setUsername(rs.getString("username"));
+                user.setEmail(rs.getString("email"));
+                user.setEmployeeNo(rs.getString("employee_no"));
+                user.setRole(rs.getString("role"));
+                user.setStatus(rs.getBoolean("status"));
+                return user;
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error getting user by username", e);
+        }
+        return null;
     }
 
     public User getUserByCredentials(String username, String password) {

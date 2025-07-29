@@ -67,49 +67,9 @@
 
 <div class="admin-container">
     <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="user-profile">
-            <img src="images/UserImage.png" alt="User Avatar" class="user-avatar">
-            <div class="user-name"><%= fullName != null ? fullName : "Admin User" %></div>
-            <div class="user-role"><%= role != null ? role : "Admin" %></div>
-        </div>
-
-        <div class="nav-menu">
-            <div class="nav-item active">
-                <i class="fas fa-users"></i>
-                <span>System Users</span>
-            </div>
-            <div class="nav-item">
-                <i class="fas fa-user-tag"></i>
-                <span>Customers</span>
-            </div>
-            <div class="nav-item">
-                <i class="fas fa-boxes"></i>
-                <span>Items</span>
-            </div>
-            <div class="nav-item">
-                <i class="fas fa-exchange-alt"></i>
-                <span>Transactions</span>
-            </div>
-            <div class="nav-item">
-                <i class="fas fa-chart-bar"></i>
-                <span>Reports</span>
-            </div>
-            <div class="nav-item">
-                <i class="fas fa-question-circle"></i>
-                <span>Help</span>
-            </div>
-            <div class="nav-item">
-                <i class="fas fa-user-circle"></i>
-                <span>My Profile</span>
-            </div>
-        </div>
-
-        <a href="logout" class="logout-btn">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Logout</span>
-        </a>
-    </div>
+    <jsp:include page="sidebar.jsp">
+        <jsp:param name="activePage" value="users" />
+    </jsp:include>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -203,7 +163,7 @@
                 <table class="user-table">
                     <thead>
                     <tr>
-                        <th colspan="9" style="text-align: right;"> <!-- Changed from 8 to 9 -->
+                        <th colspan="9" style="text-align: right;">
                             <button type="button" class="btn btn-primary" id="newUserBtn">
                                 <i class="fas fa-plus"></i> New User
                             </button>
@@ -235,7 +195,7 @@
                                     <%= user.isStatus() ? "Active" : "Inactive" %>
                                 </span>
                         </td>
-                        <td><button class="edit-btn" data-id="<%= user.getId() %>">Edit</button></td>
+                        <td><button class="edit-btn" data-id="<%= user.getId() %>"> <i class="fas fa-edit"></i> Edit</button></td>
                         <td>
                             <button class="delete-btn" data-id="<%= user.getId() %>">
                                 <i class="fas fa-trash-alt"></i> Delete

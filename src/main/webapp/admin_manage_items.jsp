@@ -1,7 +1,10 @@
 <%@ page import="com.pahanaedu.dao.ItemDAO" %>
+<%@ page import="com.pahanaedu.dao.CategoryDAO" %>
 <%@ page import="com.pahanaedu.model.Item" %>
+<%@ page import="com.pahanaedu.model.Category" %>
 <%@ page import="java.util.List" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page import="java.text.SimpleDateFormat" %>
 <%
   // Check if user is logged in
   HttpSession httpSession = request.getSession(false);
@@ -15,17 +18,13 @@
   }
 
   ItemDAO itemDAO = new ItemDAO();
+  CategoryDAO categoryDAO = new CategoryDAO();
   List<Item> items = null;
-  List<String> categories = null;
+  List<Category> categories = categoryDAO.getAllCategories();
 
   items = (List<Item>) request.getAttribute("items");
-  categories = (List<String>) request.getAttribute("categories");
-
   if (items == null) {
     items = itemDAO.getAllItems();
-  }
-  if (categories == null) {
-    categories = itemDAO.getAllCategories();
   }
 
   // Notification variables
@@ -50,7 +49,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
 </head>
 <body>
 
@@ -67,24 +65,6 @@
   <button class="close-btn">&times;</button>
 </div>
 <% } %>
-
-<!-- Add Category Modal -->
-<div id="addCategoryModal" class="modal">
-  <div class="modal-content">
-    <span class="close-modal">&times;</span>
-    <h3>Add New Category</h3>
-    <form id="addCategoryForm">
-      <div class="form-group">
-        <label for="newCategoryName">Category Name</label>
-        <input type="text" id="newCategoryName" name="newCategoryName" placeholder="Enter category name" required>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" id="cancelAddCategory">Cancel</button>
-        <button type="submit" class="btn btn-primary">Add Category</button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <div class="admin-container">
   <!-- Sidebar -->
@@ -112,19 +92,19 @@
         <div class="form-row">
           <div class="form-group">
             <label for="name">Item Name</label>
-            <input type="text" id="name" name="name" placeholder="Enter item name" required>
+            <input type="text" id="name" name="name" placeholder="Enter item name" required autocomplete="off">
           </div>
-          <div class="form-group" style="position: relative;">
+          <div class="form-group">
             <label for="category">Category</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <select id="category" name="category" required style="flex: 1;">
-                <option value="">Select category</option>
-                <% for (String category : categories) { %>
-                <option value="<%= category %>"><%= category %></option>
+            <div class="category-selector">
+              <select id="category" name="categoryId" required>
+                <option value="">Select a category</option>
+                <% for (Category category : categories) { %>
+                <option value="<%= category.getCategoryId() %>"><%= category.getCategoryName() %></option>
                 <% } %>
               </select>
-              <button type="button" id="addCategoryBtn" class="btn btn-secondary" style="white-space: nowrap;">
-                <i class="fas fa-plus"></i> Add
+              <button type="button" id="addCategoryBtn" class="btn btn-secondary">
+                <i class="fas fa-plus"></i> Add Category
               </button>
             </div>
           </div>
@@ -132,8 +112,8 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label for="price">Price</label>
-            <input type="number" id="price" name="price" placeholder="Enter price" min="0" step="0.01" required>
+            <label for="price">Price (Rs.)</label>
+            <input type="number" id="price" name="price" placeholder="Enter price" step="0.01" min="0" required>
           </div>
           <div class="form-group">
             <label for="stockQty">Stock Quantity</label>
@@ -149,12 +129,29 @@
         </div>
 
         <div class="form-actions">
-          <button type="button" class="btn btn-secondary" id="clearBtn">Clear</button>
-          <button type="submit" class="btn btn-primary" id="addBtn">Add Item</button>
-          <button type="submit" class="btn btn-primary" id="updateBtn" style="display:none">Update Item</button>
-          <button type="button" class="btn btn-tertiary" id="cancelEditBtn" style="display:none">Cancel Edit</button>
+          <button type="button" class="btn btn-secondary" id="clearItemBtn">Clear</button>
+          <button type="submit" class="btn btn-primary" id="addItemBtn">Add Item</button>
+          <button type="submit" class="btn btn-primary" id="updateItemBtn" style="display:none">Update Item</button>
+          <button type="button" class="btn btn-tertiary" id="cancelItemEditBtn" style="display:none">Cancel Edit</button>
         </div>
       </form>
+
+      <!-- Category Modal -->
+      <div id="categoryModal" class="modal" style="display:none;">
+        <div class="modal-content">
+          <span class="close-modal">&times;</span>
+          <h2>Add New Category</h2>
+          <form id="categoryForm">
+            <div class="form-group">
+              <input type="text" id="newCategoryName" name="newCategoryName" placeholder="Enter category name" required>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="cancelCategoryBtn">Cancel</button>
+              <button type="submit" class="btn btn-primary">Add Category</button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <!-- Search Bar -->
       <form method="get" class="search-bar">
@@ -165,7 +162,8 @@
         <% } %>
       </form>
 
-      <!-- Item Table -->
+      <!-- Items Table -->
+      <h2 class="section-title">Items</h2>
       <div class="user-table-container">
         <table class="user-table">
           <thead>
@@ -177,13 +175,13 @@
             </th>
           </tr>
           <tr>
-            <th>ID</th>
+            <th>Item ID</th>
             <th>Name</th>
             <th>Category</th>
-            <th>Price</th>
-            <th>Stock</th>
-            <th>Created Date</th>
-            <th>Created By</th>
+            <th>Price (Rs.)</th>
+            <th>Stock Qty</th>
+            <th>Description</th>
+            <th>Created</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -196,12 +194,19 @@
             <td><%= item.getCategoryName() %></td>
             <td><%= String.format("%.2f", item.getPrice()) %></td>
             <td><%= item.getStockQty() %></td>
-            <td><%= item.getCreatedDate() != null ? item.getCreatedDate().toString() : "" %></td>
-            <td><%= item.getCreatedBy() %></td>
+            <td><%= item.getDescription() != null ? item.getDescription() : "" %></td>
+            <td>
+              <%= item.getCreatedBy() != null ? item.getCreatedBy() : "System" %> -
+              <%= item.getCreatedDate() != null ?
+                      new SimpleDateFormat("yyyy-MM-dd").format(item.getCreatedDate()) :
+                      "N/A" %>
+            </td>
             <td>
               <button class="edit-btn" data-id="<%= item.getItemId() %>">
                 <i class="fas fa-edit"></i> Edit
               </button>
+            </td>
+            <td>
               <button class="delete-btn" data-id="<%= item.getItemId() %>">
                 <i class="fas fa-trash-alt"></i> Delete
               </button>
@@ -216,90 +221,51 @@
           </tbody>
         </table>
       </div>
+
+
+      <% if ("admin".equals(role)) { %>
+      <div class="categories-section">
+        <h2 class="section-title">Categories</h2>
+        <div class="user-table-container">
+          <table class="user-table">
+            <thead>
+            <tr>
+              <th>Category ID</th>
+              <th>Category Name</th>
+              <th>Created Date</th>
+              <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <% if(categories != null && !categories.isEmpty()) { %>
+            <% for (Category category : categories) { %>
+            <tr>
+              <td><%= category.getCategoryId() %></td>
+              <td><%= category.getCategoryName() %></td>
+              <td><%= category.getCreatedDate() != null ? category.getCreatedDate().toString() : "" %></td>
+              <td>
+                <button class="delete-btn" data-id="<%= category.getCategoryId() %>">
+                  <i class="fas fa-trash-alt"></i> Delete
+                </button>
+              </td>
+            </tr>
+            <% } %>
+            <% } else { %>
+            <tr>
+              <td colspan="4" style="text-align: center;">No categories found</td>
+            </tr>
+            <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <% } %>
     </div>
   </div>
 </div>
 
 <script>
-
-  // Modal functionality
-  function setupModal() {
-    const modal = document.getElementById('addCategoryModal');
-    const btn = document.getElementById('addCategoryBtn');
-    const closeBtn = document.querySelector('.close-modal');
-    const cancelBtn = document.getElementById('cancelAddCategory');
-
-    if (!modal || !btn) {
-      console.error('Modal elements not found');
-      return;
-    }
-
-    // Open modal
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      modal.style.display = 'block';
-      document.body.classList.add('body-modal-open');
-    });
-
-    // Close modal
-    function closeModal() {
-      modal.style.display = 'none';
-      document.body.classList.remove('body-modal-open');
-    }
-
-    closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-
-    // Close when clicking outside modal
-    window.addEventListener('click', function(event) {
-      if (event.target === modal) {
-        closeModal();
-      }
-    });
-
-    // Handle form submission
-    document.getElementById('addCategoryForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const newCategoryName = document.getElementById('newCategoryName').value.trim();
-
-      if (newCategoryName === '') {
-        alert('Please enter a category name');
-        return;
-      }
-
-      fetch('${pageContext.request.contextPath}/manage-categories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `action=add&categoryName=${encodeURIComponent(newCategoryName)}`
-      })
-              .then(response => response.json())
-              .then(data => {
-                if (data.success) {
-                  const categorySelect = document.getElementById('category');
-                  const newOption = document.createElement('option');
-                  newOption.value = newCategoryName;
-                  newOption.textContent = newCategoryName;
-                  newOption.selected = true;
-                  categorySelect.appendChild(newOption);
-
-                  document.getElementById('addCategoryForm').reset();
-                  closeModal();
-                  alert('Category added successfully!');
-                } else {
-                  alert(data.message || 'Failed to add category');
-                }
-              })
-              .catch(error => {
-                console.error('Error:', error);
-                alert('Error adding category');
-              });
-    });
-  }
-
   document.addEventListener('DOMContentLoaded', function() {
-    setupModal();
     // Notification handling
     document.querySelectorAll('.close-btn').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -319,20 +285,66 @@
 
     // Form validation
     function validateItemForm() {
+      const name = document.getElementById('name').value.trim();
+      const category = document.getElementById('category').value;
       const price = document.getElementById('price').value;
       const stockQty = document.getElementById('stockQty').value;
 
-      if (parseFloat(price) < 0) {
-        alert('Price must be positive');
-        return false;
+      // Clear previous errors
+      document.querySelectorAll('.error-message').forEach(el => el.remove());
+
+      let isValid = true;
+
+      if (!name) {
+        showFieldError('name', 'Item name is required');
+        isValid = false;
       }
 
-      if (parseInt(stockQty) < 0) {
-        alert('Stock quantity must be positive');
-        return false;
+      if (!category) {
+        showFieldError('category', 'Category is required');
+        isValid = false;
       }
 
-      return true;
+      const priceVal = parseFloat(price);
+      if (isNaN(priceVal) || priceVal <= 0) {
+        showFieldError('price', 'Please enter a valid positive price');
+        isValid = false;
+      }
+
+      const qtyVal = parseInt(stockQty);
+      if (isNaN(qtyVal) || qtyVal < 0) {
+        showFieldError('stockQty', 'Please enter a valid stock quantity (0 or more)');
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+    function showFieldError(fieldId, message) {
+      const field = document.getElementById(fieldId);
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.style.color = 'red';
+      errorDiv.style.fontSize = '0.8rem';
+      errorDiv.style.marginTop = '5px';
+      errorDiv.textContent = message;
+
+      // Insert after the field
+      field.parentNode.insertBefore(errorDiv, field.nextSibling);
+
+      // Highlight field
+      field.style.borderColor = 'red';
+      setTimeout(() => {
+        field.style.borderColor = '';
+      }, 3000);
+    }
+
+    function showError(message) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'notification error';
+      errorDiv.innerHTML = `<span>${message}</span><button class="close-btn">&times;</button>`;
+      document.body.prepend(errorDiv);
+      setTimeout(() => errorDiv.remove(), 5000);
     }
 
     // Update current date and time
@@ -352,83 +364,101 @@
     setInterval(updateDateTime, 60000);
 
     // Add new item
-    document.getElementById('newItemBtn').addEventListener('click', resetFormToAddMode);
+    document.getElementById('newItemBtn')?.addEventListener('click', resetItemFormToAddMode);
 
     // Cancel edit functionality
-    document.getElementById('cancelEditBtn').addEventListener('click', function() {
-      resetFormToAddMode();
+    document.getElementById('cancelItemEditBtn')?.addEventListener('click', function() {
+      resetItemFormToAddMode();
     });
 
-    function resetFormToAddMode() {
+    function resetItemFormToAddMode() {
       document.getElementById('itemForm').reset();
       document.getElementById('itemId').value = '';
       document.getElementById('formAction').value = 'add';
 
       // Update UI
-      document.getElementById('addBtn').style.display = 'block';
-      document.getElementById('updateBtn').style.display = 'none';
-      document.getElementById('cancelEditBtn').style.display = 'none';
+      document.getElementById('addItemBtn').style.display = 'block';
+      document.getElementById('updateItemBtn').style.display = 'none';
+      document.getElementById('cancelItemEditBtn').style.display = 'none';
       document.querySelector('.page-title').textContent = 'Item Management';
     }
 
-    // Edit button functionality
+    // Edit button functionality - FIXED
     const editButtons = document.querySelectorAll('.edit-btn');
-    const form = document.querySelector('.user-form');
-    const addBtn = document.getElementById('addBtn');
-    const updateBtn = document.getElementById('updateBtn');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const updateItemBtn = document.getElementById('updateItemBtn');
     const formAction = document.getElementById('formAction');
     const itemIdInput = document.getElementById('itemId');
 
     editButtons.forEach(button => {
       button.addEventListener('click', function() {
-        const itemId = this.getAttribute('data-id');
+        const row = this.closest('tr');
+        const cells = row.querySelectorAll('td');
 
-        fetch('${pageContext.request.contextPath}/manage-items?action=get&itemId=' + itemId)
-                .then(response => response.json())
-                .then(item => {
-                  document.getElementById('itemId').value = item.itemId;
-                  document.getElementById('name').value = item.name;
-                  document.getElementById('category').value = item.categoryName;
-                  document.getElementById('price').value = item.price;
-                  document.getElementById('stockQty').value = item.stockQty;
-                  document.getElementById('description').value = item.description;
+        // Fill form fields - FIXED: using 'name' instead of 'itemName'
+        document.getElementById('itemId').value = cells[0].textContent;
+        document.getElementById('name').value = cells[1].textContent;
 
-                  formAction.value = 'update';
+        // Set category - need to find the option that matches the text
+        const categorySelect = document.getElementById('category');
+        const categoryName = cells[2].textContent;
+        for (let i = 0; i < categorySelect.options.length; i++) {
+          if (categorySelect.options[i].text === categoryName) {
+            categorySelect.selectedIndex = i;
+            break;
+          }
+        }
 
-                  addBtn.style.display = 'none';
-                  updateBtn.style.display = 'block';
-                  document.getElementById('cancelEditBtn').style.display = 'block';
-                  document.querySelector('.page-title').textContent = 'Update Item';
-                })
-                .catch(error => {
-                  console.error('Error fetching item:', error);
-                  alert('Error loading item details');
-                });
+        document.getElementById('price').value = cells[3].textContent.replace(/[^\d.]/g, '');
+        document.getElementById('stockQty').value = cells[4].textContent;
+        document.getElementById('description').value = cells[5].textContent || '';
+
+        // Set hidden fields
+        formAction.value = 'update';
+
+        // Update UI
+        addItemBtn.style.display = 'none';
+        updateItemBtn.style.display = 'block';
+        document.getElementById('cancelItemEditBtn').style.display = 'block';
+        document.querySelector('.page-title').textContent = 'Update Item';
+
+        // Scroll to form
+        document.getElementById('itemForm').scrollIntoView({ behavior: 'smooth' });
       });
     });
 
-    // Delete button functionality
+    // Delete button functionality - IMPROVED
     const deleteButtons = document.querySelectorAll('.delete-btn');
     deleteButtons.forEach(button => {
       button.addEventListener('click', function() {
         const itemId = this.getAttribute('data-id');
         if (confirm('Are you sure you want to delete this item?')) {
+          // Create a hidden form to submit the delete request
           const form = document.createElement('form');
           form.method = 'POST';
           form.action = '${pageContext.request.contextPath}/manage-items';
 
+          // Add CSRF token if available
+          const csrf = document.querySelector('input[name="_csrf"]');
+          if (csrf) {
+            form.appendChild(csrf.cloneNode());
+          }
+
+          // Add action parameter
           const actionInput = document.createElement('input');
           actionInput.type = 'hidden';
           actionInput.name = 'action';
           actionInput.value = 'delete';
           form.appendChild(actionInput);
 
+          // Add itemId parameter
           const itemIdInput = document.createElement('input');
           itemIdInput.type = 'hidden';
           itemIdInput.name = 'itemId';
           itemIdInput.value = itemId;
           form.appendChild(itemIdInput);
 
+          // Submit the form
           document.body.appendChild(form);
           form.submit();
         }
@@ -436,9 +466,179 @@
     });
 
     // Clear button functionality
-    const clearButton = document.getElementById('clearBtn');
-    clearButton.addEventListener('click', function() {
-      resetFormToAddMode();
+    const clearButton = document.getElementById('clearItemBtn');
+    clearButton?.addEventListener('click', function() {
+      resetItemFormToAddMode();
+    });
+
+    // Category Modal functionality
+    const modal = document.getElementById('categoryModal');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const closeModal = document.querySelector('.close-modal');
+    const cancelCategoryBtn = document.getElementById('cancelCategoryBtn');
+
+    addCategoryBtn?.addEventListener('click', function() {
+      modal.style.display = 'block';
+    });
+
+    closeModal?.addEventListener('click', function() {
+      modal.style.display = 'none';
+    });
+
+    cancelCategoryBtn?.addEventListener('click', function() {
+      modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', function(event) {
+      if (event.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    // Handle category form submission - IMPROVED
+    const categoryForm = document.getElementById('categoryForm');
+    if (categoryForm) {
+      categoryForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const categoryName = document.getElementById('newCategoryName').value.trim();
+
+        if (!categoryName) {
+          alert('Category name is required');
+          return;
+        }
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+        // Submit via AJAX
+        const formData = new FormData();
+        formData.append('action', 'addCategory');
+        formData.append('categoryName', categoryName);
+
+        // Add CSRF token if available
+        const csrf = document.querySelector('input[name="_csrf"]');
+        if (csrf) {
+          formData.append(csrf.name, csrf.value);
+        }
+
+        fetch('${pageContext.request.contextPath}/manage-items', {
+          method: 'POST',
+          body: formData
+        })
+                .then(response => {
+                  if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                  }
+                  return response.json();
+                })
+                .then(data => {
+                  if (data.success) {
+                    // Add the new category to the select dropdown
+                    const categorySelect = document.getElementById('category');
+                    const newOption = document.createElement('option');
+                    newOption.value = data.categoryId;
+                    newOption.textContent = categoryName;
+                    categorySelect.appendChild(newOption);
+                    newOption.selected = true;
+
+                    // If admin, also add to the categories table
+                    if (document.querySelector('.categories-section')) {
+                      const categoriesTable = document.querySelector('.categories-section table tbody');
+                      const newRow = document.createElement('tr');
+                      newRow.innerHTML = `
+                  <td>${data.categoryId}</td>
+                  <td>${categoryName}</td>
+                  <td>Just now</td>
+                  <td>
+                    <button class="delete-category-btn" data-id="${data.categoryId}">
+                      <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                  </td>
+                `;
+                      categoriesTable.appendChild(newRow);
+                    }
+
+                    // Close modal and reset form
+                    modal.style.display = 'none';
+                    this.reset();
+                  } else {
+                    alert(data.message || 'Failed to add category');
+                  }
+                })
+                .catch(error => {
+                  console.error('Error:', error);
+                  alert('An error occurred while adding the category');
+                })
+                .finally(() => {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = originalText;
+                });
+      });
+    }
+
+    // Delete category button functionality (for admin) - IMPROVED
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.delete-category-btn')) {
+        const button = e.target.closest('.delete-category-btn');
+        const categoryId = button.getAttribute('data-id');
+
+        if (confirm('Are you sure you want to delete this category? Items in this category will not be deleted but will lose their category association.')) {
+          // Show loading state
+          const originalText = button.innerHTML;
+          button.disabled = true;
+          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+
+          // Submit via AJAX
+          const formData = new FormData();
+          formData.append('action', 'deleteCategory');
+          formData.append('categoryId', categoryId);
+
+          // Add CSRF token if available
+          const csrf = document.querySelector('input[name="_csrf"]');
+          if (csrf) {
+            formData.append(csrf.name, csrf.value);
+          }
+
+          fetch('${pageContext.request.contextPath}/manage-items', {
+            method: 'POST',
+            body: formData
+          })
+                  .then(response => {
+                    if (!response.ok) {
+                      throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                  })
+                  .then(data => {
+                    if (data.success) {
+                      // Remove from select dropdown
+                      const categorySelect = document.getElementById('category');
+                      for (let i = 0; i < categorySelect.options.length; i++) {
+                        if (categorySelect.options[i].value === categoryId) {
+                          categorySelect.remove(i);
+                          break;
+                        }
+                      }
+
+                      // Remove from table
+                      button.closest('tr').remove();
+                    } else {
+                      alert(data.message || 'Failed to delete category');
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the category');
+                  })
+                  .finally(() => {
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                  });
+        }
+      }
     });
   });
 </script>

@@ -124,8 +124,19 @@
                 <div class="modal-content">
                     <span class="close-modal">&times;</span>
                     <h2>Change Password</h2>
-                    <form id="passwordForm" action="${pageContext.request.contextPath}/change-password" method="post">
-                        <input type="hidden" name="userId" value="<%= currentUser.getId() %>">
+
+                    <% String pwdMsg = (String) session.getAttribute("pwdMsg");
+                        if (pwdMsg != null) { %>
+                    <p style="color: green;"><%= pwdMsg %></p>
+                    <% session.removeAttribute("pwdMsg"); } %>
+
+                    <% String pwdErr = (String) session.getAttribute("pwdError");
+                        if (pwdErr != null) { %>
+                    <p style="color: red;"><%= pwdErr %></p>
+                    <% session.removeAttribute("pwdError"); } %>
+
+                    <form id="passwordForm" action="changePassword" method="post">
+                        <input type="hidden" name="username" value="<%= session.getAttribute("username") %>" />
 
                         <div class="form-group">
                             <label for="currentPassword">Current Password</label>

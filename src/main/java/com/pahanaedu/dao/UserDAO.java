@@ -198,6 +198,8 @@ public class UserDAO {
         }
     }
 
+
+
     public boolean deleteUser(int userId) {
         String sql = "DELETE FROM system_users WHERE user_id = ?";
 

@@ -499,7 +499,7 @@
       }
     });
 
-    // Handle category form submission
+    // Handle category form submission...................................
     const categoryForm = document.getElementById('categoryForm');
     if (categoryForm) {
       categoryForm.addEventListener('submit', function(e) {
@@ -561,60 +561,89 @@
     }
 
     // Delete category button functionality (for admin) - IMPROVED
-    document.addEventListener('click', function(e) {
-      if (e.target.closest('.delete-category-btn')) {
-        const button = e.target.closest('.delete-category-btn');
-        const categoryId = button.getAttribute('data-id');
+    function handleDeleteCategory(event) {
+      const button = event.target.closest('.delete-category-btn');
+      const categoryId = button.getAttribute('data-id');
 
-        if (confirm('Are you sure you want to delete this category? Items in this category will not be deleted but will lose their category association.')) {
-          // Show loading state
-          const originalText = button.innerHTML;
-          button.disabled = true;
-          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+      if (confirm('Are you sure you want to delete this category? Items in this category will not be deleted but will lose their category association.')) {
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
 
-          // Submit via AJAX
-          const formData = new FormData();
-          formData.append('action', 'delete');
-          formData.append('categoryId', categoryId);
+        const formData = new FormData();
+        formData.append('action', 'delete');
+        formData.append('categoryId', categoryId);
 
-          fetch('${pageContext.request.contextPath}/manage-categories', {
-            method: 'POST',
-            body: formData
-          })
-                  .then(response => {
-                    if (!response.ok) {
-                      throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                  })
-                  .then(data => {
-                    if (data.success) {
-                      // Remove from select dropdown
-                      const categorySelect = document.getElementById('category');
-                      for (let i = 0; i < categorySelect.options.length; i++) {
-                        if (categorySelect.options[i].value === categoryId) {
-                          categorySelect.remove(i);
-                          break;
-                        }
+        fetch('${pageContext.request.contextPath}/manage-categories', {
+          method: 'POST',
+          body: formData
+        })
+                .then(response => {
+                  if (!response.ok) throw new Error('Network error');
+                  return response.json();
+                })
+                .then(data => {
+                  if (data.success) {
+                    // Remove from dropdown
+                    const categorySelect = document.getElementById('category');
+                    for (let i = 0; i < categorySelect.options.length; i++) {
+                      if (categorySelect.options[i].value === categoryId) {
+                        categorySelect.remove(i);
+                        break;
                       }
-
-                      // Remove from table
-                      button.closest('tr').remove();
-                    } else {
-                      alert(data.message || 'Failed to delete category');
                     }
-                  })
-                  .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while deleting the category');
-                  })
-                  .finally(() => {
-                    button.disabled = false;
-                    button.innerHTML = originalText;
-                  });
-        }
+
+                    // Remove from table
+                    button.closest('tr').remove();
+
+                    // Show empty state if no categories left
+                    const categoriesTable = document.querySelector('.categories-section table tbody');
+                    if (categoriesTable && categoriesTable.querySelectorAll('tr').length === 0) {
+                      categoriesTable.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center;">No categories found</td>
+                        </tr>
+                    `;
+                    }
+
+                    showSuccess('Category deleted successfully!');
+                  } else {
+                    throw new Error(data.message || 'Failed to delete category');
+                  }
+                })
+                .catch(error => {
+                  console.error('Error:', error);
+                  showError(error.message);
+                })
+                .finally(() => {
+                  button.disabled = false;
+                  button.innerHTML = originalText;
+                });
       }
+    }
+
+// Initialize delete handlers for existing categories
+    document.querySelectorAll('.delete-category-btn').forEach(btn => {
+      btn.addEventListener('click', handleDeleteCategory);
     });
+
+    function showSuccess(message) {
+      const successDiv = document.createElement('div');
+      successDiv.className = 'notification success';
+      successDiv.innerHTML = `<span>${message}</span><button class="close-btn">&times;</button>`;
+      document.body.prepend(successDiv);
+      setTimeout(() => successDiv.remove(), 5000);
+    }
+
+    function showError(message) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'notification error';
+      errorDiv.innerHTML = `<span>${message}</span><button class="close-btn">&times;</button>`;
+      document.body.prepend(errorDiv);
+      setTimeout(() => errorDiv.remove(), 5000);
+    }
+
+
   });
 </script>
 </body>

@@ -178,6 +178,26 @@ public class UserDAO {
         }
     }
 
+    //My Profile update
+    public boolean updateUserProfile(User user) {
+        String sql = "UPDATE system_users SET name = ?, email = ? WHERE user_id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, user.getFullName());  // Maps to 'name' column
+            stmt.setString(2, user.getEmail());
+            stmt.setInt(3, user.getId());
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error updating user profile", e);
+            return false;
+        }
+    }
+
     public boolean deleteUser(int userId) {
         String sql = "DELETE FROM system_users WHERE user_id = ?";
 

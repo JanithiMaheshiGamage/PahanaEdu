@@ -346,7 +346,7 @@
                 passwordField.placeholder = "Password cannot be changed by admin";
                 passwordField.required = false;
 
-                // Set role dropdown - FIXED THIS PART
+                // Set role dropdown
                 const roleSelect = document.getElementById('role');
                 const role = cells[5].textContent.trim().toLowerCase(); // Convert to lowercase to match option values
                 for (let i = 0; i < roleSelect.options.length; i++) {

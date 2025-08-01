@@ -223,7 +223,7 @@
       </div>
 
 
-      <% if ("admin".equals(role)) { %>
+      <% if ("admin".equalsIgnoreCase(role)) { %>
       <div class="categories-section">
         <h2 class="section-title">Categories</h2>
         <div class="user-table-container">
@@ -237,12 +237,20 @@
             </tr>
             </thead>
             <tbody>
-            <% if(categories != null && !categories.isEmpty()) { %>
+            <% if(categories == null || categories.isEmpty()) { %>
+            <tr>
+              <td colspan="4" style="text-align: center;">No categories found</td>
+            </tr>
+            <% } else { %>
             <% for (Category category : categories) { %>
             <tr>
               <td><%= category.getCategoryId() %></td>
               <td><%= category.getCategoryName() %></td>
-              <td><%= category.getCreatedDate() != null ? category.getCreatedDate().toString() : "" %></td>
+              <td>
+                <%= category.getCreatedDate() != null ?
+                        new SimpleDateFormat("yyyy-MM-dd HH:mm").format(category.getCreatedDate()) :
+                        "N/A" %>
+              </td>
               <td>
                 <button class="delete-btn" data-id="<%= category.getCategoryId() %>">
                   <i class="fas fa-trash-alt"></i> Delete
@@ -250,10 +258,6 @@
               </td>
             </tr>
             <% } %>
-            <% } else { %>
-            <tr>
-              <td colspan="4" style="text-align: center;">No categories found</td>
-            </tr>
             <% } %>
             </tbody>
           </table>
@@ -495,7 +499,7 @@
       }
     });
 
-    // Handle category form submission - IMPROVED
+    // Handle category form submission
     const categoryForm = document.getElementById('categoryForm');
     if (categoryForm) {
       categoryForm.addEventListener('submit', function(e) {
@@ -513,18 +517,12 @@
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
 
-        // Submit via AJAX
+        // Create form data with the required action parameter
         const formData = new FormData();
-        formData.append('action', 'addCategory');
+        formData.append('action', 'add');
         formData.append('categoryName', categoryName);
 
-        // Add CSRF token if available
-        const csrf = document.querySelector('input[name="_csrf"]');
-        if (csrf) {
-          formData.append(csrf.name, csrf.value);
-        }
-
-        fetch('${pageContext.request.contextPath}/manage-items', {
+        fetch('${pageContext.request.contextPath}/manage-categories', {
           method: 'POST',
           body: formData
         })
@@ -536,30 +534,13 @@
                 })
                 .then(data => {
                   if (data.success) {
-                    // Add the new category to the select dropdown
+                    // Success handling remains the same
                     const categorySelect = document.getElementById('category');
                     const newOption = document.createElement('option');
                     newOption.value = data.categoryId;
                     newOption.textContent = categoryName;
                     categorySelect.appendChild(newOption);
                     newOption.selected = true;
-
-                    // If admin, also add to the categories table
-                    if (document.querySelector('.categories-section')) {
-                      const categoriesTable = document.querySelector('.categories-section table tbody');
-                      const newRow = document.createElement('tr');
-                      newRow.innerHTML = `
-                  <td>${data.categoryId}</td>
-                  <td>${categoryName}</td>
-                  <td>Just now</td>
-                  <td>
-                    <button class="delete-category-btn" data-id="${data.categoryId}">
-                      <i class="fas fa-trash-alt"></i> Delete
-                    </button>
-                  </td>
-                `;
-                      categoriesTable.appendChild(newRow);
-                    }
 
                     // Close modal and reset form
                     modal.style.display = 'none';
@@ -574,7 +555,7 @@
                 })
                 .finally(() => {
                   submitBtn.disabled = false;
-                  submitBtn.textContent = originalText;
+                  submitBtn.innerHTML = originalText;
                 });
       });
     }
@@ -593,16 +574,10 @@
 
           // Submit via AJAX
           const formData = new FormData();
-          formData.append('action', 'deleteCategory');
+          formData.append('action', 'delete');
           formData.append('categoryId', categoryId);
 
-          // Add CSRF token if available
-          const csrf = document.querySelector('input[name="_csrf"]');
-          if (csrf) {
-            formData.append(csrf.name, csrf.value);
-          }
-
-          fetch('${pageContext.request.contextPath}/manage-items', {
+          fetch('${pageContext.request.contextPath}/manage-categories', {
             method: 'POST',
             body: formData
           })

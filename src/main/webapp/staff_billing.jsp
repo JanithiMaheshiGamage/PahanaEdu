@@ -28,73 +28,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        .customer-section, .items-section, .cart-section {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .search-results {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            margin-top: 10px;
-            display: none;
-        }
-
-        .search-result-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-
-        .search-result-item:hover {
-            background-color: #f5f5f5;
-        }
-
-        .cart-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .cart-table th, .cart-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .payment-section {
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .payment-method {
-            flex: 1;
-        }
-
-        .payment-details {
-            display: none;
-            margin-top: 10px;
-        }
-
-        .total-section {
-            margin-top: 20px;
-            text-align: right;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .action-buttons {
-            margin-top: 20px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-    </style>
 </head>
 <body>
 
@@ -132,63 +65,109 @@
 
             <!-- Customer Section -->
             <div class="customer-section">
-                <h2>Customer Details</h2>
-                <div class="form-row">
-                    <div class="form-group" style="flex: 2;">
-                        <label for="customerSearch">Search Customer (NIC/Name/Phone)</label>
-                        <input type="text" id="customerSearch" placeholder="Enter NIC, Name or Phone">
-                        <div id="customerResults" class="search-results"></div>
+                <div class="customer-flow">
+                    <!-- Step 1: Search or Add Customer -->
+                    <div class="customer-step active" id="step-search">
+                        <h4>Search Customer</h4>
+
+                        <div class="search-container">
+                            <div class="search-bar">
+                                <input type="text" id="customerSearch" placeholder="Enter NIC, Name or Phone" autocomplete="off">
+                            </div>
+                            <div class="search-actions">
+                                <button type="button" class="btn btn-secondary" id="newCustomerBtn">
+                                    <i class="fas fa-user-plus"></i> Add New Customer
+                                </button>
+                            </div>
+
+                            <div id="customerResults" class="search-results">
+                                <div class="search-placeholder">
+                                    <i class="fas fa-search"></i>
+                                    <p>Search for customers by NIC, name or phone number</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <button type="button" class="btn btn-secondary" id="newCustomerBtn">New Customer</button>
+
+                    <!-- Step 2: Confirm Selected Customer -->
+                    <div class="customer-step" id="step-confirm">
+
+                        <div class="customer-card selected">
+                            <div class="customer-header">
+                                <div class="customer-avatar">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="customer-info">
+                                    <h3 id="customerNameDisplay">No customer selected</h3>
+                                    <div class="customer-meta">
+                                        <span><i class="fas fa-id-card"></i> NIC: <span id="customerNicDisplay">-</span></span>
+                                        <span><i class="fas fa-phone"></i> Phone: <span id="customerPhoneDisplay">-</span></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="customer-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Email:</span>
+                                    <span id="customerEmailDisplay" class="detail-value">-</span>
+                                </div>
+                            </div>
+
+                            <div class="customer-actions">
+                                <button type="button" class="btn btn-danger" id="changeCustomerBtn">
+                                    <i class="fas fa-times"></i> Change Customer
+                                </button>
+                                <button type="button" class="btn btn-success" id="confirmCustomerBtn">
+                                    <i class="fas fa-check"></i> Confirm & Continue
+                                </button>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="selectedCustomerId">
                     </div>
                 </div>
 
-                <!-- New Customer Form (Initially Hidden) -->
-                <div id="newCustomerForm" style="display: none; margin-top: 20px;">
-                    <form id="addCustomerForm" method="post" action="add-customer">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="newName">Full Name</label>
-                                <input type="text" id="newName" name="name" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="newNic">NIC</label>
-                                <input type="text" id="newNic" name="nic" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="newPhone">Phone Number</label>
-                                <input type="text" id="newPhone" name="phoneNo" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="newEmail">Email</label>
-                                <input type="email" id="newEmail" name="email">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group" style="flex: 2;">
-                                <label for="newAddress">Address</label>
-                                <textarea id="newAddress" name="address" required></textarea>
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" id="cancelNewCustomer">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Add Customer</button>
-                        </div>
-                    </form>
-                </div>
+                <!-- New Customer Form (Modal) -->
+                <div id="newCustomerModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h2>Add New Customer</h2>
 
-                <!-- Selected Customer Display -->
-                <div id="selectedCustomer" style="display: none; margin-top: 20px;">
-                    <h3>Selected Customer</h3>
-                    <div class="customer-details">
-                        <p><strong>Name:</strong> <span id="customerName"></span></p>
-                        <p><strong>NIC:</strong> <span id="customerNic"></span></p>
-                        <p><strong>Phone:</strong> <span id="customerPhone"></span></p>
+                        <form id="addCustomerForm" method="post" action="add-customer">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newName">Full Name</label>
+                                    <input type="text" id="newName" name="name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="newNic">NIC</label>
+                                    <input type="text" id="newNic" name="nic" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newPhone">Phone Number</label>
+                                    <input type="text" id="newPhone" name="phoneNo" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="newEmail">Email</label>
+                                    <input type="email" id="newEmail" name="email">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="newAddress">Address</label>
+                                    <textarea id="newAddress" name="address" required></textarea>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="cancelNewCustomer">Cancel</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Customer
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    <input type="hidden" id="selectedCustomerId">
                 </div>
             </div>
 
@@ -326,56 +305,170 @@
             });
         }, 5000);
 
-        // Customer search functionality
-        const customerSearch = document.getElementById('customerSearch');
-        const customerResults = document.getElementById('customerResults');
 
-        customerSearch.addEventListener('input', function() {
+        // Customer Section Functionality
+        let selectedCustomer = null;
+
+// Search functionality with debounce
+        customerSearch.addEventListener('input', debounce(function() {
             const query = this.value.trim();
+
             if (query.length < 2) {
-                customerResults.style.display = 'none';
+                customerResults.innerHTML = `
+            <div class="search-placeholder">
+                <i class="fas fa-search"></i>
+                <p>Search for customers by NIC, name or phone number</p>
+            </div>
+        `;
                 return;
             }
+
+            // Show loading state
+            customerResults.innerHTML = `
+        <div class="search-placeholder">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Searching customers...</p>
+        </div>
+    `;
 
             fetch('search-customers?query=' + encodeURIComponent(query))
                 .then(response => response.json())
                 .then(data => {
-                    customerResults.innerHTML = '';
                     if (data.length === 0) {
-                        customerResults.innerHTML = '<div class="search-result-item">No customers found</div>';
+                        customerResults.innerHTML = `
+                    <div class="search-placeholder">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>No customers found</p>
+                    </div>
+                `;
                     } else {
+                        customerResults.innerHTML = '';
                         data.forEach(customer => {
                             const item = document.createElement('div');
                             item.className = 'search-result-item';
                             item.innerHTML = `
-                                <strong>${customer.name}</strong><br>
-                                NIC: ${customer.nic} | Phone: ${customer.phoneNo}
-                                <input type="hidden" value='${JSON.stringify(customer)}'>
-                            `;
+                        <h4>${customer.name}</h4>
+                        <p><i class="fas fa-id-card"></i> ${customer.nic} | <i class="fas fa-phone"></i> ${customer.phoneNo}</p>
+                        <input type="hidden" value='${JSON.stringify(customer)}'>
+                    `;
                             item.addEventListener('click', function() {
-                                const customerData = JSON.parse(this.querySelector('input[type="hidden"]').value);
-                                displaySelectedCustomer(customerData);
-                                customerResults.style.display = 'none';
+                                selectedCustomer = JSON.parse(this.querySelector('input[type="hidden"]').value);
+
+                                // Highlight selected item
+                                document.querySelectorAll('.search-result-item').forEach(el => {
+                                    el.classList.remove('selected');
+                                });
+                                this.classList.add('selected');
+
+                                // Show customer details
+                                displayCustomerDetails(selectedCustomer);
                             });
                             customerResults.appendChild(item);
                         });
                     }
-                    customerResults.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    customerResults.innerHTML = `
+                <div class="search-placeholder error">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading customers</p>
+                </div>
+            `;
                 });
+        }, 300));
+
+// Display customer details
+        function displayCustomerDetails(customer) {
+            document.getElementById('customerNameDisplay').textContent = customer.name;
+            document.getElementById('customerNicDisplay').textContent = customer.nic;
+            document.getElementById('customerPhoneDisplay').textContent = customer.phoneNo;
+            document.getElementById('customerEmailDisplay').textContent = customer.email || 'Not provided';
+            document.getElementById('selectedCustomerId').value = customer.accountNo;
+
+            // Move to confirmation step
+            document.getElementById('step-search').classList.remove('active');
+            document.getElementById('step-confirm').classList.add('active');
+        }
+
+// Confirm customer button
+        document.getElementById('confirmCustomerBtn').addEventListener('click', function() {
+            // Here you would typically enable the items section
+            // For now we'll just show a success message
+            alert('Customer confirmed! You can now add items to the bill.');
         });
 
-        // New customer button
-        document.getElementById('newCustomerBtn').addEventListener('click', function() {
-            document.getElementById('newCustomerForm').style.display = 'block';
-            document.getElementById('selectedCustomer').style.display = 'none';
+// Change customer button
+        document.getElementById('changeCustomerBtn').addEventListener('click', function() {
+            selectedCustomer = null;
+            document.getElementById('step-confirm').classList.remove('active');
+            document.getElementById('step-search').classList.add('active');
             document.getElementById('customerSearch').value = '';
+            document.getElementById('customerSearch').focus();
         });
 
-        // Cancel new customer
+// New customer button
+        document.getElementById('newCustomerBtn').addEventListener('click', function() {
+            document.getElementById('newCustomerModal').style.display = 'block';
+        });
+
+// Close modal
+        document.querySelector('.close-modal').addEventListener('click', function() {
+            document.getElementById('newCustomerModal').style.display = 'none';
+        });
+
+// Cancel new customer
         document.getElementById('cancelNewCustomer').addEventListener('click', function() {
-            document.getElementById('newCustomerForm').style.display = 'none';
+            document.getElementById('newCustomerModal').style.display = 'none';
             document.getElementById('addCustomerForm').reset();
         });
+
+// Handle new customer form submission
+        document.getElementById('addCustomerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Disable button during submission
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            // Simulate form submission
+            setTimeout(() => {
+                // In a real app, this would be an AJAX call
+                alert('Customer added successfully!');
+
+                // Close modal and reset form
+                document.getElementById('newCustomerModal').style.display = 'none';
+                this.reset();
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Customer';
+
+                // Set the newly added customer as selected
+                // In a real app, you would get this data from the server response
+                const newCustomer = {
+                    name: document.getElementById('newName').value,
+                    nic: document.getElementById('newNic').value,
+                    phoneNo: document.getElementById('newPhone').value,
+                    email: document.getElementById('newEmail').value,
+                    accountNo: 'new-customer-id' // This would come from server
+                };
+
+                selectedCustomer = newCustomer;
+                displayCustomerDetails(newCustomer);
+            }, 1000);
+        });
+
+// Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                const context = this, args = arguments;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    func.apply(context, args);
+                }, wait);
+            };
+        }
 
         // Item search functionality
         const itemSearch = document.getElementById('itemSearch');
@@ -559,112 +652,152 @@
                 event.target.style.display = 'none';
             }
         });
+
+        // Display selected customer
+        function displaySelectedCustomer(customer) {
+            document.getElementById('customerNameDisplay').textContent = customer.name;
+            document.getElementById('customerNicDisplay').textContent = customer.nic;
+            document.getElementById('customerPhoneDisplay').textContent = customer.phoneNo;
+            document.getElementById('customerEmailDisplay').textContent = customer.email || 'N/A';
+            document.getElementById('selectedCustomerId').value = customer.accountNo;
+
+            // Change the Select button to Remove
+            const selectBtn = document.getElementById('selectCustomerBtn');
+            selectBtn.textContent = 'Remove';
+            selectBtn.classList.remove('btn-secondary');
+            selectBtn.classList.add('btn-danger');
+            selectBtn.onclick = function() {
+                removeSelectedCustomer();
+            };
+        }
+
+        // Remove selected customer
+        function removeSelectedCustomer() {
+            document.getElementById('customerNameDisplay').textContent = 'Not selected';
+            document.getElementById('customerNicDisplay').textContent = '-';
+            document.getElementById('customerPhoneDisplay').textContent = '-';
+            document.getElementById('customerEmailDisplay').textContent = '-';
+            document.getElementById('selectedCustomerId').value = '';
+
+            // Change the Remove button back to Select
+            const selectBtn = document.getElementById('selectCustomerBtn');
+            selectBtn.textContent = 'Select';
+            selectBtn.classList.remove('btn-danger');
+            selectBtn.classList.add('btn-secondary');
+            selectBtn.onclick = function() {
+                if (selectedCustomer) {
+                    displaySelectedCustomer(selectedCustomer);
+                    customerResults.style.display = 'none';
+                } else {
+                    alert('Please select a customer from the search results first');
+                }
+            };
+
+            // Clear selected customer
+            selectedCustomer = null;
+            if (selectedCustomerElement) {
+                selectedCustomerElement.classList.remove('selected');
+                selectedCustomerElement = null;
+            }
+        }
+
+        // Add item to cart
+        function addItemToCart(item) {
+            // Check if item already exists in cart
+            const existingRow = document.querySelector(`#cartItems tr[data-item-id="${item.itemId}"]`);
+
+            if (existingRow) {
+                // Increase quantity
+                const quantityInput = existingRow.querySelector('.item-quantity');
+                quantityInput.value = parseInt(quantityInput.value) + 1;
+                updateItemTotal(existingRow);
+            } else {
+                // Add new row
+                const row = document.createElement('tr');
+                row.dataset.itemId = item.itemId;
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td class="item-price">Rs. ${item.price.toFixed(2)}</td>
+                    <td>
+                        <input type="number" class="item-quantity" value="1" min="1" max="${item.stockQty}">
+                    </td>
+                    <td class="item-total">Rs. ${item.price.toFixed(2)}</td>
+                    <td>
+                        <button class="remove-item-btn"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                `;
+
+                // Add event listeners
+                row.querySelector('.item-quantity').addEventListener('change', function() {
+                    updateItemTotal(row);
+                });
+
+                row.querySelector('.remove-item-btn').addEventListener('click', function() {
+                    row.remove();
+                    updateSubtotal();
+                });
+
+                document.getElementById('cartItems').appendChild(row);
+            }
+
+            updateSubtotal();
+        }
+
+        // Update item total when quantity changes
+        function updateItemTotal(row) {
+            const price = parseFloat(row.querySelector('.item-price').textContent.replace('Rs. ', ''));
+            const quantity = parseInt(row.querySelector('.item-quantity').value);
+            const total = price * quantity;
+            row.querySelector('.item-total').textContent = 'Rs. ' + total.toFixed(2);
+            updateSubtotal();
+        }
+
+        // Update subtotal
+        function updateSubtotal() {
+            const totals = Array.from(document.querySelectorAll('.item-total')).map(el => {
+                return parseFloat(el.textContent.replace('Rs. ', ''));
+            });
+
+            const subtotal = totals.reduce((sum, total) => sum + total, 0);
+            document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+
+            // Update change if cash payment
+            if (document.querySelector('input[name="paymentMethod"]:checked').value === 'cash') {
+                const received = parseFloat(document.getElementById('amountReceived').value) || 0;
+                const change = received - subtotal;
+                document.getElementById('changeAmount').textContent = change.toFixed(2);
+            }
+        }
+
+        // Show success modal
+        function showSuccessModal(billId, totalAmount) {
+            document.getElementById('billIdDisplay').textContent = billId;
+            document.getElementById('totalAmountDisplay').textContent = totalAmount.toFixed(2);
+            document.getElementById('successModal').style.display = 'block';
+            document.getElementById('printBillBtn').style.display = 'inline-block';
+        }
+
+        // Reset transaction form
+        function resetTransactionForm() {
+            document.getElementById('customerSearch').value = '';
+            document.getElementById('selectedCustomerId').value = '';
+            document.getElementById('itemSearch').value = '';
+            document.getElementById('cartItems').innerHTML = '';
+            document.getElementById('subtotal').textContent = '0.00';
+            document.querySelector('input[name="paymentMethod"][value="cash"]').checked = true;
+            document.getElementById('cashDetails').style.display = 'block';
+            document.getElementById('cardDetails').style.display = 'none';
+            document.getElementById('amountReceived').value = '';
+            document.getElementById('changeAmount').textContent = '0.00';
+            document.getElementById('cardNumber').value = '';
+            document.getElementById('expiryDate').value = '';
+            document.getElementById('cvv').value = '';
+            document.getElementById('printBillBtn').style.display = 'none';
+
+            // Reset customer selection
+            removeSelectedCustomer();
+        }
     });
-
-    // Display selected customer
-    function displaySelectedCustomer(customer) {
-        document.getElementById('customerName').textContent = customer.name;
-        document.getElementById('customerNic').textContent = customer.nic;
-        document.getElementById('customerPhone').textContent = customer.phoneNo;
-        document.getElementById('selectedCustomerId').value = customer.accountNo;
-        document.getElementById('selectedCustomer').style.display = 'block';
-        document.getElementById('newCustomerForm').style.display = 'none';
-    }
-
-    // Add item to cart
-    function addItemToCart(item) {
-        // Check if item already exists in cart
-        const existingRow = document.querySelector(`#cartItems tr[data-item-id="${item.itemId}"]`);
-
-        if (existingRow) {
-            // Increase quantity
-            const quantityInput = existingRow.querySelector('.item-quantity');
-            quantityInput.value = parseInt(quantityInput.value) + 1;
-            updateItemTotal(existingRow);
-        } else {
-            // Add new row
-            const row = document.createElement('tr');
-            row.dataset.itemId = item.itemId;
-            row.innerHTML = `
-                <td>${item.name}</td>
-                <td class="item-price">Rs. ${item.price.toFixed(2)}</td>
-                <td>
-                    <input type="number" class="item-quantity" value="1" min="1" max="${item.stockQty}">
-                </td>
-                <td class="item-total">Rs. ${item.price.toFixed(2)}</td>
-                <td>
-                    <button class="remove-item-btn"><i class="fas fa-trash-alt"></i></button>
-                </td>
-            `;
-
-            // Add event listeners
-            row.querySelector('.item-quantity').addEventListener('change', function() {
-                updateItemTotal(row);
-            });
-
-            row.querySelector('.remove-item-btn').addEventListener('click', function() {
-                row.remove();
-                updateSubtotal();
-            });
-
-            document.getElementById('cartItems').appendChild(row);
-        }
-
-        updateSubtotal();
-    }
-
-    // Update item total when quantity changes
-    function updateItemTotal(row) {
-        const price = parseFloat(row.querySelector('.item-price').textContent.replace('Rs. ', ''));
-        const quantity = parseInt(row.querySelector('.item-quantity').value);
-        const total = price * quantity;
-        row.querySelector('.item-total').textContent = 'Rs. ' + total.toFixed(2);
-        updateSubtotal();
-    }
-
-    // Update subtotal
-    function updateSubtotal() {
-        const totals = Array.from(document.querySelectorAll('.item-total')).map(el => {
-            return parseFloat(el.textContent.replace('Rs. ', ''));
-        });
-
-        const subtotal = totals.reduce((sum, total) => sum + total, 0);
-        document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-
-        // Update change if cash payment
-        if (document.querySelector('input[name="paymentMethod"]:checked').value === 'cash') {
-            const received = parseFloat(document.getElementById('amountReceived').value) || 0;
-            const change = received - subtotal;
-            document.getElementById('changeAmount').textContent = change.toFixed(2);
-        }
-    }
-
-    // Show success modal
-    function showSuccessModal(billId, totalAmount) {
-        document.getElementById('billIdDisplay').textContent = billId;
-        document.getElementById('totalAmountDisplay').textContent = totalAmount.toFixed(2);
-        document.getElementById('successModal').style.display = 'block';
-        document.getElementById('printBillBtn').style.display = 'inline-block';
-    }
-
-    // Reset transaction form
-    function resetTransactionForm() {
-        document.getElementById('customerSearch').value = '';
-        document.getElementById('selectedCustomer').style.display = 'none';
-        document.getElementById('selectedCustomerId').value = '';
-        document.getElementById('itemSearch').value = '';
-        document.getElementById('cartItems').innerHTML = '';
-        document.getElementById('subtotal').textContent = '0.00';
-        document.querySelector('input[name="paymentMethod"][value="cash"]').checked = true;
-        document.getElementById('cashDetails').style.display = 'block';
-        document.getElementById('cardDetails').style.display = 'none';
-        document.getElementById('amountReceived').value = '';
-        document.getElementById('changeAmount').textContent = '0.00';
-        document.getElementById('cardNumber').value = '';
-        document.getElementById('expiryDate').value = '';
-        document.getElementById('cvv').value = '';
-        document.getElementById('printBillBtn').style.display = 'none';
-    }
 </script>
 </body>
 </html>

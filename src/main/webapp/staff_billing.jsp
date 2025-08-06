@@ -252,10 +252,10 @@
 
             <!-- Action Buttons -->
             <div class="action-buttons">
-                <button type="button" class="btn btn-secondary" id="cancelBillBtn">
+                <button type="button" class="btn-secondary" id="cancelBillBtn">
                     <i class="fas fa-times"></i> Cancel
                 </button>
-                <button type="button" class="btn btn-primary" id="confirmBillBtn">
+                <button type="button" class="btn-primary" id="confirmBillBtn">
                     <i class="fas fa-check"></i> Confirm Bill
                 </button>
             </div>

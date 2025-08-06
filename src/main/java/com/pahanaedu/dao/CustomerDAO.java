@@ -153,6 +153,25 @@ public class CustomerDAO {
         return customers;
     }
 
+    public List<Customer> getCustomersByPhone(String phone) {
+        List<Customer> customers = new ArrayList<>();
+        String sql = "SELECT * FROM customers WHERE phone_no LIKE ? ORDER BY account_no";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, "%" + phone + "%");
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                customers.add(mapResultSetToCustomer(rs));
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error getting customers by phone", e);
+        }
+        return customers;
+    }
+
     public String generateNewAccountNumber() {
         String sql = "SELECT LPAD(IFNULL(MAX(CAST(account_no AS UNSIGNED)), 0) + 1, 6, '0') FROM customers";
 

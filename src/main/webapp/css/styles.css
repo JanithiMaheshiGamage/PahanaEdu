@@ -857,13 +857,13 @@ body.admin-profile .nav-item[data-page="profile"] {
 }
 
 .modal-content .btn-primary {
-    background-color: #3498db;
+    background-color: #D2691E;
     color: white;
-    border: 1px solid #2980b9;
+    border: 1px solid #D2691E;
 }
 
 .modal-content .btn-primary:hover {
-    background-color: #2980b9;
+    background-color: #D2691E;
 }
 
 .category-management {
@@ -1096,7 +1096,7 @@ body.admin-profile .nav-item[data-page="profile"] {
 .payment-section > h3 {
     all: unset;
     font-size: 1.25rem !important;
-    color: #2c3emportant;
+    color: #D2691E;
     margin-bottom: 1.5rem !important;
     padding-bottom: 0.75rem !important;
     border-bottom: 2px solid #f0f0f0 !important;
@@ -1174,7 +1174,7 @@ body.admin-profile .nav-item[data-page="profile"] {
 
 .search-result-item.selected {
     background: #f0f7ff;
-    border-left: 3px solid #4a90e2;
+    border-left: 3px solid #D2691E;
 }
 
 .search-result-item h4 {
@@ -1199,8 +1199,8 @@ body.admin-profile .nav-item[data-page="profile"] {
 }
 
 .customer-card.selected {
-    border-color: #4a90e2;
-    box-shadow: 0 0 0 1px #4a90e2;
+    border-color: #D2691E;
+    box-shadow: 0 0 0 1px #D2691E;
 }
 
 .customer-header {

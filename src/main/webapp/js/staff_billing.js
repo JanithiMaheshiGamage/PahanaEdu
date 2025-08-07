@@ -1,5 +1,4 @@
-// staff_billing.js (fixed)
-// Ensure contextPath is available
+
 if (!window.contextPath) {
     console.warn('contextPath not defined, defaulting to empty string');
     window.contextPath = '';
@@ -10,10 +9,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const endpoints = {
         searchItems: `${window.contextPath}/search-items`,
         checkCustomer: `${window.contextPath}/billing?action=checkCustomer`, // change if your mapping is different
-        addCustomer: `${window.contextPath}/add-customer`,
-        selectCustomer: `${window.contextPath}/select-customer`,
-        clearCustomer: `${window.contextPath}/clear-customer`,
-        generateBill: `${window.contextPath}/generate-bill`
+        addCustomer: `${window.contextPath}/billing?action=addCustomer`,
+        selectCustomer: `${window.contextPath}/billing?action=selectCustomer`,
+        clearCustomer: `${window.contextPath}/billing?action=clearCustomer`,
+        generateBill: `${window.contextPath}/billing?action=generateBill`
     };
 
     // Initialize Select2 for item search
@@ -389,6 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setButtonLoading(saveBtn, true);
 
             try {
+                // Construct customer data
                 const customerData = {
                     name: document.getElementById('newCustomerName').value.trim(),
                     phoneNo: document.getElementById('newCustomerPhone').value.trim(),
@@ -397,34 +397,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     address: document.getElementById('newCustomerAddress').value.trim()
                 };
 
+                // Validate required fields
                 if (!customerData.name || !customerData.phoneNo) {
                     throw new Error("Name and Phone Number are required");
                 }
 
-                const resp = await fetch(endpoints.addCustomer, {
+                // Use the correct endpoint
+                const resp = await fetch(`${window.contextPath}/billing?action=addCustomer`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify(customerData),
-                    credentials: 'same-origin'
+                    credentials: 'include'
                 });
 
                 if (!resp.ok) {
-                    const txt = await resp.text();
-                    console.error('Add customer failed:', txt);
-                    throw new Error('Failed to add customer');
+                    const errorData = await resp.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Server responded with status ${resp.status}`);
                 }
 
-                const data = await safeJsonResponse(resp);
-                if (data && data.success) {
-                    addCustomerModal.style.display = 'none';
-                    document.body.classList.remove('body-modal-open');
-                    selectCustomer(data.customer);
-                } else {
-                    throw new Error(data.message || 'Failed to add customer');
-                }
+                const data = await resp.json();
+
+                // Close modal and select the new customer
+                addCustomerModal.style.display = 'none';
+                document.body.classList.remove('body-modal-open');
+                selectCustomer(data);
+
+                // Show success message
+                showNotification('Customer added successfully!', 'success');
+
             } catch (error) {
                 console.error('Error:', error);
-                alert(error.message || 'Error adding customer');
+                showNotification(error.message || 'Error adding customer', 'error');
             } finally {
                 setButtonLoading(saveBtn, false);
             }

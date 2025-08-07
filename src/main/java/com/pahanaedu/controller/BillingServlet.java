@@ -124,14 +124,53 @@ public class BillingServlet extends HttpServlet {
     }
 
     private void addCustomer(HttpServletRequest request, HttpServletResponse response) throws IOException, SQLException {
-        Customer customer = gson.fromJson(request.getReader(), Customer.class);
-        boolean success = customerDAO.insertCustomer(customer);  // Changed from addCustomer to insertCustomer
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
 
-        if (success) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.getWriter().write(gson.toJson(customer));
-        } else {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to add customer");
+        try {
+            // Parse the JSON request
+            Customer customer = gson.fromJson(request.getReader(), Customer.class);
+
+            // Generate account number
+            customer.setAccountNo(customerDAO.generateNewAccountNumber());
+
+            // Set created by (from session)
+            HttpSession session = request.getSession();
+            String username = (String) session.getAttribute("username");
+            customer.setCreatedBy(username != null ? username : "system");
+
+            // Set default values
+            customer.setUnitsConsumed(0);
+
+            // Validate required fields
+            if (customer.getName() == null || customer.getName().trim().isEmpty() ||
+                    customer.getPhoneNo() == null || customer.getPhoneNo().trim().isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.getWriter().write("{\"error\":\"Name and phone number are required\"}");
+                return;
+            }
+
+            // Check if phone number already exists
+            if (customerDAO.phoneNoExists(customer.getPhoneNo())) {
+                response.setStatus(HttpServletResponse.SC_CONFLICT);
+                response.getWriter().write("{\"error\":\"Phone number already exists\"}");
+                return;
+            }
+
+            // Insert customer
+            boolean success = customerDAO.insertCustomer(customer);
+
+            if (success) {
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.getWriter().write(gson.toJson(customer));
+            } else {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().write("{\"error\":\"Failed to save customer to database\"}");
+            }
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().write("{\"error\":\"Server error: " + e.getMessage() + "\"}");
+            e.printStackTrace();
         }
     }
 

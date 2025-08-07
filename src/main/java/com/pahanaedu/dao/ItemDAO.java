@@ -158,8 +158,10 @@ public class ItemDAO {
 
     public List<Item> searchItems(String keyword) {
         List<Item> items = new ArrayList<>();
-        String sql = "SELECT i.*, c.category_name FROM items i LEFT JOIN categories c ON i.category_id = c.category_id " +
-                "WHERE i.name LIKE ? OR i.description LIKE ? OR c.category_name LIKE ?";
+        String sql = "SELECT i.*, c.category_name FROM items i " +
+                "LEFT JOIN categories c ON i.category_id = c.category_id " +
+                "WHERE i.name LIKE ? OR i.description LIKE ? OR c.category_name LIKE ? " +
+                "ORDER BY i.name";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

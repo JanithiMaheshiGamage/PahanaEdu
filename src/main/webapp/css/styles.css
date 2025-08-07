@@ -386,6 +386,10 @@ input:checked + .slider:before {
     color: #333;
 }
 
+.btn.close-modal {
+    font-size: 14px;
+}
+
 .btn-secondary:hover {
     background-color: #e0e0e0;
 }

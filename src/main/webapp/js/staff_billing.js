@@ -24,14 +24,22 @@ document.addEventListener('DOMContentLoaded', function() {
             dataType: 'json',
             delay: 250,
             data: function(params) {
-                return { term: params.term };
+                return {
+                    term: params.term // Make sure this matches the parameter name in your servlet
+                };
             },
             processResults: function(data) {
+                // Handle both success and error cases
+                if (data.error) {
+                    console.error("Search error:", data.error);
+                    return { results: [] };
+                }
+
                 return {
                     results: (data.items || []).map(item => ({
                         id: item.itemId,
                         text: `${item.name} (${item.categoryName}) - LKR ${Number(item.price).toFixed(2)}`,
-                        item: item
+                        item: item // Store the full item object for later use
                     }))
                 };
             },

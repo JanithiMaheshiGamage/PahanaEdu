@@ -96,6 +96,32 @@ public class BillDAO {
         }
     }
 
+    public Bill getBillByNumber(String billNo) throws SQLException {
+        String sql = "SELECT * FROM bills WHERE bill_no = ?";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, billNo);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Bill bill = new Bill();
+                    bill.setBillId(rs.getInt("bill_id"));
+                    bill.setBillNo(rs.getString("bill_no"));
+                    bill.setCustomerId(rs.getString("customer_id"));
+                    bill.setTotalAmount(rs.getDouble("total_amount"));
+                    bill.setPaymentMethod(rs.getString("payment_method"));
+                    bill.setPaymentDetails(rs.getString("payment_details"));
+                    bill.setCreatedDate(rs.getTimestamp("created_date"));
+                    bill.setCreatedBy(rs.getInt("created_by"));
+
+                    // You may also want to load items here
+                    return bill;
+                }
+            }
+        }
+        return null;
+    }
+
     // Get bill by ID
     public Bill getBillById(int billId) {
         String billSQL = "SELECT * FROM bills WHERE bill_id = ?";

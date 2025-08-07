@@ -659,5 +659,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    if (responseData.success) {
+        showNotification('Bill generated successfully! Bill No: ' + responseData.billNo, 'success');
+
+        // Add download button
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'btn btn-primary';
+        downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Bill';
+        downloadBtn.onclick = () => {
+            window.open(`${window.contextPath}/billing?action=downloadBill&billNo=${responseData.billNo}`, '_blank');
+        };
+
+        // Add it near your confirmation button or in a suitable place
+        document.querySelector('.action-buttons').appendChild(downloadBtn);
+
+        // Reset form...
+    }
+
 
 });

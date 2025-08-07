@@ -13,6 +13,14 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 
 @WebServlet("/billing")
 public class BillingServlet extends HttpServlet {
@@ -46,12 +54,24 @@ public class BillingServlet extends HttpServlet {
                 errorResponse.put("error", "Database error occurred");
                 response.getWriter().write(gson.toJson(errorResponse));
             }
-        } else {
+        }
+        else if ("downloadBill".equals(action)) {
+            try {
+                downloadBill(request, response);
+            } catch (SQLException ex) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                Map<String, String> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Error generating bill download");
+                response.getWriter().write(gson.toJson(errorResponse));
+            }
+        }
+        else {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", "Invalid action");
             response.getWriter().write(gson.toJson(errorResponse));
         }
+
     }
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -261,5 +281,108 @@ public class BillingServlet extends HttpServlet {
             response.getWriter().write("{\"error\":\"Server error: " + e.getMessage() + "\"}");
             e.printStackTrace();
         }
+    }
+
+    private void downloadBill(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, SQLException {
+        String billNo = request.getParameter("billNo");
+
+        if (billNo == null || billNo.trim().isEmpty()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bill number is required");
+            return;
+        }
+
+        try {
+            // Get the bill from database
+            Bill bill = billDAO.getBillByNumber(billNo);
+
+            if (bill == null) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Bill not found");
+                return;
+            }
+
+            // Generate PDF
+            byte[] pdfBytes;
+            try {
+                pdfBytes = generateBillPdf(bill);
+            } catch (Exception e) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Error generating PDF: " + e.getMessage());
+                return;
+            }
+
+            // Set response headers for PDF download
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "attachment; filename=bill_" + billNo + ".pdf");
+            response.setContentLength(pdfBytes.length);
+
+            // Write PDF to response
+            try (OutputStream out = response.getOutputStream()) {
+                out.write(pdfBytes);
+                out.flush();
+            }
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Error processing bill download: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private byte[] generateBillPdf(Bill bill) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document();
+
+        try {
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            // Add bill header
+            document.add(new Paragraph("PAHANA EDU - INVOICE"));
+            document.add(new Paragraph("Bill No: " + bill.getBillNo()));
+            document.add(new Paragraph("Date: " + new SimpleDateFormat("yyyy-MM-dd").format(bill.getCreatedDate())));
+            document.add(new Paragraph(" "));
+
+            // Add customer info
+            Customer customer = customerDAO.getCustomerByAccountNo(bill.getCustomerId());
+            if (customer != null) {
+                document.add(new Paragraph("Customer: " + customer.getName()));
+                document.add(new Paragraph("Account No: " + customer.getAccountNo()));
+            }
+            document.add(new Paragraph(" "));
+
+            // Add items table
+            PdfPTable table = new PdfPTable(4);
+            table.addCell("Item");
+            table.addCell("Quantity");
+            table.addCell("Price");
+            table.addCell("Subtotal");
+
+            for (BillItem item : bill.getItems()) {
+                Item dbItem = itemDAO.getItemById(item.getItemId());
+                if (dbItem != null) {
+                    table.addCell(dbItem.getName());
+                    table.addCell(String.valueOf(item.getQuantity()));
+                    table.addCell("LKR " + String.format("%.2f", item.getPrice()));
+                    table.addCell("LKR " + String.format("%.2f", item.getSubtotal()));
+                }
+            }
+            document.add(table);
+            document.add(new Paragraph(" "));
+
+            // Add totals
+            document.add(new Paragraph("Total: LKR " + String.format("%.2f", bill.getTotalAmount())));
+            document.add(new Paragraph("Payment Method: " + bill.getPaymentMethod()));
+            document.add(new Paragraph("Payment Details: " + bill.getPaymentDetails()));
+
+        } catch (DocumentException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error generating PDF document", e);
+        } finally {
+            if (document != null && document.isOpen()) {
+                document.close();
+            }
+        }
+
+        return baos.toByteArray();
     }
 }

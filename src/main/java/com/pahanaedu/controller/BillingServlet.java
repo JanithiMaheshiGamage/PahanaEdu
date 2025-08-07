@@ -174,19 +174,92 @@ public class BillingServlet extends HttpServlet {
         }
     }
 
-    private void generateBill(HttpServletRequest request, HttpServletResponse response) throws IOException, SQLException {
-        Bill bill = gson.fromJson(request.getReader(), Bill.class);
-        HttpSession session = request.getSession();
-        User user = (User) session.getAttribute("user");
-        bill.setCreatedBy(user.getId());  // Changed from getUserId() to getId()
+    private Map<String, String> validateBill(Bill bill) throws SQLException {
+        Map<String, String> errors = new HashMap<>();
 
-        boolean success = billDAO.createBill(bill);
+        // 1. Validate customer
+        if (bill.getCustomerId() == null || bill.getCustomerId().trim().isEmpty()) {
+            errors.put("customer", "Customer not selected");
+        } else if (customerDAO.getCustomerByAccountNo(bill.getCustomerId()) == null) {
+            errors.put("customer", "Invalid customer selected");
+        }
 
-        if (success) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.getWriter().write("{\"success\": true}");
+        // 2. Validate items
+        if (bill.getItems() == null || bill.getItems().isEmpty()) {
+            errors.put("items", "No items in the bill");
         } else {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to generate bill");
+            for (BillItem item : bill.getItems()) {
+                Item dbItem = itemDAO.getItemById(item.getItemId());
+                if (dbItem == null) {
+                    errors.put("items", "Invalid item in cart: " + item.getItemId());
+                    break;
+                }
+                if (item.getQuantity() <= 0) {
+                    errors.put("items", "Invalid quantity for item: " + item.getItemId());
+                    break;
+                }
+                if (dbItem.getStockQty() < item.getQuantity()) {
+                    errors.put("items", "Insufficient stock for item: " + dbItem.getName());
+                    break;
+                }
+            }
+        }
+
+        // 3. Validate payment
+        if (!"cash".equals(bill.getPaymentMethod()) && !"card".equals(bill.getPaymentMethod())) {
+            errors.put("payment", "Invalid payment method");
+        }
+        if (bill.getTotalAmount() <= 0) {
+            errors.put("total", "Invalid total amount");
+        }
+
+        return errors;
+    }
+
+    private void generateBill(HttpServletRequest request, HttpServletResponse response) throws IOException, SQLException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        try {
+            Bill bill = gson.fromJson(request.getReader(), Bill.class);
+            HttpSession session = request.getSession();
+
+            // Get user ID from session (not username)
+            Integer userId = (Integer) session.getAttribute("userId");
+            if (userId == null) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("{\"error\":\"User not authenticated\"}");
+                return;
+            }
+
+            // Set createdBy with the numeric user ID
+            bill.setCreatedBy(userId);
+
+            // Rest of your validation and bill creation logic...
+            Map<String, String> errors = validateBill(bill);
+
+            if (!errors.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.getWriter().write(gson.toJson(errors));
+                return;
+            }
+
+            boolean success = billDAO.createBill(bill);
+
+            if (success) {
+                Map<String, Object> responseData = new HashMap<>();
+                responseData.put("success", true);
+                responseData.put("message", "Bill created successfully");
+                responseData.put("billNo", bill.getBillNo());
+                response.getWriter().write(gson.toJson(responseData));
+            } else {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().write("{\"error\":\"Failed to create bill\"}");
+            }
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().write("{\"error\":\"Server error: " + e.getMessage() + "\"}");
+            e.printStackTrace();
         }
     }
 }

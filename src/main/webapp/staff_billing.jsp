@@ -50,6 +50,8 @@
 </div>
 <% } %>
 
+<div id="userData" data-username="<%= username %>" style="display: none;"></div>
+
 <div class="admin-container">
     <!-- Sidebar -->
     <jsp:include page="staff_sidebar.jsp">
@@ -98,7 +100,7 @@
 
                         <!-- Selected Customer Card -->
                         <% if (selectedCustomer != null) { %>
-                        <div class="customer-card selected" id="selectedCustomerCard">
+                        <div class="customer-card selected" id="selectedCustomerCard" data-customer-id="<%= selectedCustomer.getAccountNo() %>">
                             <div class="customer-header">
                                 <div class="customer-avatar">
                                     <i class="fas fa-user"></i>

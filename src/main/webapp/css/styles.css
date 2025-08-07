@@ -1289,3 +1289,29 @@ body.admin-profile .nav-item[data-page="profile"] {
     min-height: 80px;
     resize: vertical;
 }
+
+/* Add to your styles.css */
+.invalid {
+    border-color: #ff4444 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 68, 68, 0.25) !important;
+}
+
+.valid {
+    border-color: #00C851 !important;
+}
+
+.error-message {
+    color: #ff4444;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.invalid + .error-message {
+    display: block;
+}
+
+/* Highlight required fields */
+.required-field {
+    border-left: 3px solid #4285f4;
+}

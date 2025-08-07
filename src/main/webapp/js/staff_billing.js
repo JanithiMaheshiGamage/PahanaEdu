@@ -14,6 +14,207 @@ document.addEventListener('DOMContentLoaded', function() {
         clearCustomer: `${window.contextPath}/billing?action=clearCustomer`,
         generateBill: `${window.contextPath}/billing?action=generateBill`
     };
+    // Add this function to generate a bill number
+    function generateBillNumber() {
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const random = Math.floor(1000 + Math.random() * 9000);
+        return `BILL-${year}${month}${day}-${random}`;
+    }
+
+    // Add these validation functions
+    function validateCustomerSelection() {
+        const selectedCustomer = document.querySelector('#selectedCustomerCard');
+        if (!selectedCustomer) {
+            showNotification('Please select a customer first', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    function validatePaymentMethod() {
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
+        if (!paymentMethod) {
+            showNotification('Please select a payment method', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    function validateCashPayment(totalAmount) {
+        const amountReceived = parseFloat(document.getElementById('amountReceived').value) || 0;
+        if (isNaN(amountReceived)) {
+            showNotification('Please enter a valid amount received', 'error');
+            return false;
+        }
+        if (amountReceived < totalAmount) {
+            showNotification('Amount received is less than the total amount', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    function validateCartItems() {
+        const cartItems = document.querySelectorAll('#cartItems tr[data-item-id]');
+        if (cartItems.length === 0) {
+            showNotification('Please add items to the cart', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    function validateCardPayment() {
+        if (document.querySelector('input[name="paymentMethod"][value="card"]:checked')) {
+            const cardNumber = document.getElementById('cardNumber').value.trim();
+            const cardHolder = document.getElementById('cardHolder').value.trim();
+            const expiryDate = document.getElementById('expiryDate').value.trim();
+            const cvv = document.getElementById('cvv').value.trim();
+
+            if (!/^\d{16}$/.test(cardNumber.replace(/\s/g, ''))) {
+                showNotification('Please enter a valid 16-digit card number', 'error');
+                return false;
+            }
+            if (!cardHolder || cardHolder.length < 3) {
+                showNotification('Please enter card holder name', 'error');
+                return false;
+            }
+            if (!/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(expiryDate)) {
+                showNotification('Please enter a valid expiry date (MM/YY)', 'error');
+                return false;
+            }
+            if (!/^\d{3,4}$/.test(cvv)) {
+                showNotification('Please enter a valid CVV (3 or 4 digits)', 'error');
+                return false;
+            }
+        }
+        return true;
+    }
+
+// Confirm bill button handler
+    const confirmBillBtn = document.getElementById('confirmBillBtn');
+    if (confirmBillBtn) {
+        confirmBillBtn.addEventListener('click', async function() {
+            // Validate all inputs
+            if (!validateCustomerSelection()) return;
+            if (!validateCartItems()) return;
+            if (!validatePaymentMethod()) return;
+
+            const cartTotal = parseFloat(document.getElementById('cartTotal').textContent.replace('LKR', '').trim()) || 0;
+            const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+
+            // Payment-specific validation
+            if (paymentMethod === 'cash') {
+                if (!validateCashPayment(cartTotal)) return;
+            } else {
+                if (!validateCardPayment()) return;
+            }
+
+            const username = document.getElementById('userData')?.dataset?.username || 'system';
+
+            // Prepare bill data
+            const billData = {
+                billNo: generateBillNumber(),
+                customerId: document.querySelector('#selectedCustomerCard').getAttribute('data-customer-id'),
+                totalAmount: cartTotal,
+                paymentMethod: paymentMethod,
+                paymentDetails: paymentMethod === 'cash' ?
+                    `Cash received: LKR ${parseFloat(document.getElementById('amountReceived').value).toFixed(2)}` :
+                    `Card: ${document.getElementById('cardNumber').value.substring(0, 4)}...${document.getElementById('cardNumber').value.substring(15)}`,
+                items: Array.from(document.querySelectorAll('#cartItems tr[data-item-id]')).map(itemRow => ({
+                    itemId: parseInt(itemRow.getAttribute('data-item-id')),
+                    quantity: parseInt(itemRow.querySelector('.item-quantity').textContent),
+                    price: parseFloat(itemRow.querySelector('td:nth-child(4)').textContent.replace('LKR', '').trim()),
+                    subtotal: parseFloat(itemRow.querySelector('.item-subtotal').textContent.replace('LKR', '').trim()),
+                    createdBy: username
+                }))
+            };
+
+            try {
+                setButtonLoading(confirmBillBtn, true);
+
+                const resp = await fetch(endpoints.generateBill, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(billData),
+                    credentials: 'include'
+                });
+
+                const responseData = await resp.json();
+
+                if (!resp.ok) {
+                    // Handle validation errors from backend
+                    if (responseData.errors) {
+                        const errorMessages = Object.values(responseData.errors).join('\n');
+                        throw new Error(errorMessages);
+                    }
+                    throw new Error(responseData.error || 'Failed to generate bill');
+                }
+
+                if (responseData.success) {
+                    showNotification('Bill generated successfully! Bill No: ' + responseData.billNo, 'success');
+                    // Reset form
+                    document.getElementById('clearCartBtn').click();
+                    document.getElementById('clearCustomerBtn').click();
+                    // Clear payment fields...
+                } else {
+                    throw new Error(responseData.message || 'Failed to generate bill');
+                }
+            } catch (error) {
+                console.error('Error generating bill:', error);
+                showNotification(error.message || 'Error generating bill', 'error');
+            } finally {
+                setButtonLoading(confirmBillBtn, false);
+            }
+        });
+    }
+
+    // Real-time validation for cash payment
+    document.getElementById('amountReceived')?.addEventListener('input', function() {
+        const total = parseFloat(document.getElementById('cartTotal').textContent.replace('LKR', '').trim()) || 0;
+        const received = parseFloat(this.value) || 0;
+        const changeEl = document.getElementById('changeAmount');
+
+        if (received >= total) {
+            changeEl.textContent = (received - total).toFixed(2);
+            changeEl.style.color = 'green';
+        } else {
+            changeEl.textContent = '0.00';
+            changeEl.style.color = 'red';
+        }
+    });
+
+    // Card validation
+    document.getElementById('cardNumber')?.addEventListener('blur', function() {
+        const cardNumber = this.value.replace(/\s/g, '');
+        if (!/^\d{16}$/.test(cardNumber)) {
+            this.classList.add('invalid');
+        } else {
+            this.classList.remove('invalid');
+            this.value = cardNumber.replace(/(\d{4})/g, '$1 ').trim();
+        }
+    });
+
+    document.getElementById('expiryDate')?.addEventListener('blur', function() {
+        if (!/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(this.value)) {
+            this.classList.add('invalid');
+        } else {
+            this.classList.remove('invalid');
+        }
+    });
+
+    document.getElementById('cvv')?.addEventListener('blur', function() {
+        if (!/^\d{3,4}$/.test(this.value)) {
+            this.classList.add('invalid');
+        } else {
+            this.classList.remove('invalid');
+        }
+    });
+
 
     // Initialize Select2 for item search
     $('#itemSearch').select2({
@@ -445,9 +646,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Confirm bill and final confirm code remains similar to your original; omitted here for brevity.
-    // (Keep your existing confirm & generate bill logic, but ensure endpoints.generateBill is used and error handling added)
-
     // Close modals on outside click
     window.addEventListener('click', function(event) {
         if (event.target === addCustomerModal) {
@@ -460,4 +658,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.classList.remove('body-modal-open');
         }
     });
+
+
 });

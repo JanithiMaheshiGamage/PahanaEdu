@@ -16,18 +16,29 @@ public class BillDAO {
     }
 
     // Create a new bill with its items
-    public boolean createBill(Bill bill) {
+    public boolean createBill(Bill bill) throws SQLException {
+        // Additional validation
+        if (bill.getCustomerId() == null || bill.getItems() == null || bill.getItems().isEmpty()) {
+            throw new SQLException("Invalid bill data");
+        }
+
         String billSQL = "INSERT INTO bills (bill_no, customer_id, total_amount, payment_method, payment_details, created_by) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";
 
         String itemsSQL = "INSERT INTO bill_items (bill_id, item_id, quantity, price, subtotal) " +
                 "VALUES (?, ?, ?, ?, ?)";
 
-        try (PreparedStatement billStmt = connection.prepareStatement(billSQL, Statement.RETURN_GENERATED_KEYS)) {
-            // Start transaction
+        String updateCustomerSQL = "UPDATE customers SET units_consumed = units_consumed + 1 WHERE account_no = ?";
+
+        String updateStockSQL = "UPDATE items SET stock_qty = stock_qty - ? WHERE item_id = ?";
+
+        try (PreparedStatement billStmt = connection.prepareStatement(billSQL, Statement.RETURN_GENERATED_KEYS);
+             PreparedStatement updateCustomerStmt = connection.prepareStatement(updateCustomerSQL);
+             PreparedStatement updateStockStmt = connection.prepareStatement(updateStockSQL)) {
+
             connection.setAutoCommit(false);
 
-            // Insert bill
+            // 1. Insert bill
             billStmt.setString(1, bill.getBillNo());
             billStmt.setString(2, bill.getCustomerId());
             billStmt.setDouble(3, bill.getTotalAmount());
@@ -36,30 +47,39 @@ public class BillDAO {
             billStmt.setInt(6, bill.getCreatedBy());
 
             int affectedRows = billStmt.executeUpdate();
-
             if (affectedRows == 0) {
                 connection.rollback();
                 return false;
             }
 
-            // Get generated bill ID
+            // 2. Get generated bill ID
             try (ResultSet generatedKeys = billStmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     int billId = generatedKeys.getInt(1);
 
-                    // Insert bill items
+                    // 3. Insert bill items and update stock
                     try (PreparedStatement itemsStmt = connection.prepareStatement(itemsSQL)) {
                         for (BillItem item : bill.getItems()) {
+                            // Insert bill item
                             itemsStmt.setInt(1, billId);
                             itemsStmt.setInt(2, item.getItemId());
                             itemsStmt.setInt(3, item.getQuantity());
                             itemsStmt.setDouble(4, item.getPrice());
                             itemsStmt.setDouble(5, item.getSubtotal());
                             itemsStmt.addBatch();
-                        }
 
+                            // Update stock
+                            updateStockStmt.setInt(1, item.getQuantity());
+                            updateStockStmt.setInt(2, item.getItemId());
+                            updateStockStmt.addBatch();
+                        }
                         itemsStmt.executeBatch();
+                        updateStockStmt.executeBatch();
                     }
+
+                    // 4. Update customer's units_consumed
+                    updateCustomerStmt.setString(1, bill.getCustomerId());
+                    updateCustomerStmt.executeUpdate();
 
                     connection.commit();
                     return true;
@@ -69,19 +89,10 @@ public class BillDAO {
                 }
             }
         } catch (SQLException e) {
-            try {
-                connection.rollback();
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
-            e.printStackTrace();
-            return false;
+            connection.rollback();
+            throw e;
         } finally {
-            try {
-                connection.setAutoCommit(true);
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            connection.setAutoCommit(true);
         }
     }
 

@@ -213,4 +213,25 @@ public class ItemDAO {
         item.setCreatedBy(rs.getString("created_by"));
         return item;
     }
+
+    public Item getItemById(int itemId) {
+        String sql = "SELECT i.*, c.category_name FROM items i " +
+                "LEFT JOIN categories c ON i.category_id = c.category_id " +
+                "WHERE i.item_id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, itemId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToItem(rs);
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error getting item by ID", e);
+        }
+        return null;
+    }
 }

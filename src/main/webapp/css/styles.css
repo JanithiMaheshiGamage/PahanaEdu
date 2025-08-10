@@ -1333,3 +1333,47 @@ body.admin-profile .nav-item[data-page="profile"] {
 .required-field {
     border-left: 3px solid #4285f4;
 }
+
+/* Help Section Styles */
+.help-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.help-section h2 {
+    color: #2c3e50;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.help-card {
+    background: white;
+    border-radius: 6px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.help-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.help-card h3 {
+    color: #3498db;
+    margin-top: 0;
+}
+
+.help-card h3 i {
+    margin-right: 10px;
+    color: #2c3e50;
+}
+
+.help-card p {
+    color: #7f8c8d;
+    margin-bottom: 0;
+}

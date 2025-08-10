@@ -181,7 +181,7 @@
             button.addEventListener('click', function() {
                 const billId = this.getAttribute('data-id');
                 const url = '${pageContext.request.contextPath}/view-bill?billId=' + billId;
-                console.log("Opening URL:", url);  // Debug output
+                console.log("Opening URL:", url);
                 window.open(url, '_blank');
             });
         });

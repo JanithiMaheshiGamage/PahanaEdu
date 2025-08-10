@@ -44,7 +44,7 @@
             <i class="fas fa-chart-bar"></i>
             <span>Reports</span>
         </a>
-        <a href="help.jsp"
+        <a href="admin_help.jsp"
            class="nav-item <%= "help".equals(activePage) ? "active" : "" %>"
            data-page="help">
             <i class="fas fa-question-circle"></i>

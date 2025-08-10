@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
         addCustomer: `${window.contextPath}/billing?action=addCustomer`,
         selectCustomer: `${window.contextPath}/billing?action=selectCustomer`,
         clearCustomer: `${window.contextPath}/billing?action=clearCustomer`,
-        generateBill: `${window.contextPath}/billing?action=generateBill`
+        generateBill: `${window.contextPath}/billing?action=generateBill`,
+        downloadBill: `${window.contextPath}/billing?action=downloadBill`
     };
     // Add this function to generate a bill number
     function generateBillNumber() {
@@ -157,10 +158,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (responseData.success) {
                     showNotification('Bill generated successfully! Bill No: ' + responseData.billNo, 'success');
+
+                    // Add download button
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'btn btn-primary';
+                    downloadBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download Bill';
+                    downloadBtn.style.marginLeft = '10px';
+                    downloadBtn.onclick = () => {
+                        window.open(`${window.contextPath}/billing?action=downloadBill&billNo=${responseData.billNo}`, '_blank');
+                    };
+
+                    // Clear existing download button if any
+                    const existingDownloadBtn = document.querySelector('.download-bill-btn');
+                    if (existingDownloadBtn) {
+                        existingDownloadBtn.remove();
+                    }
+                    downloadBtn.classList.add('download-bill-btn');
+                    document.querySelector('.action-buttons').appendChild(downloadBtn);
+
                     // Reset form
                     document.getElementById('clearCartBtn').click();
                     document.getElementById('clearCustomerBtn').click();
-                    // Clear payment fields...
+                    document.getElementById('amountReceived').value = '';
+                    document.getElementById('changeAmount').textContent = '0.00';
+
+                    if (document.querySelector('input[name="paymentMethod"][value="card"]:checked')) {
+                        document.getElementById('cardNumber').value = '';
+                        document.getElementById('cardHolder').value = '';
+                        document.getElementById('expiryDate').value = '';
+                        document.getElementById('cvv').value = '';
+                    }
                 } else {
                     throw new Error(responseData.message || 'Failed to generate bill');
                 }

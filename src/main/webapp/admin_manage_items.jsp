@@ -68,9 +68,15 @@
 
 <div class="admin-container">
   <!-- Sidebar -->
+  <% if ("admin".equals(role)) { %>
   <jsp:include page="sidebar.jsp">
     <jsp:param name="activePage" value="items" />
   </jsp:include>
+  <% } else { %>
+  <jsp:include page="staff_sidebar.jsp">
+    <jsp:param name="activePage" value="items" />
+  </jsp:include>
+  <% } %>
 
   <!-- Main Content -->
   <div class="main-content">

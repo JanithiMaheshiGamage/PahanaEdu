@@ -20,19 +20,19 @@
             <i class="fas fa-cash-register"></i>
             <span>Billing</span>
         </a>
-        <a href="staff_manage_customers.jsp"
+        <a href="admin_manage_customers.jsp"
            class="nav-item <%= "customers".equals(activePage) ? "active" : "" %>"
            data-page="customers">
             <i class="fas fa-user-tag"></i>
             <span>Customers</span>
         </a>
-        <a href="staff_manage_items.jsp"
+        <a href="admin_manage_items.jsp"
            class="nav-item <%= "items".equals(activePage) ? "active" : "" %>"
            data-page="items">
             <i class="fas fa-boxes"></i>
             <span>Items</span>
         </a>
-        <a href="staff_transactions.jsp"
+        <a href="transactions.jsp"
            class="nav-item <%= "transactions".equals(activePage) ? "active" : "" %>"
            data-page="transactions">
             <i class="fas fa-exchange-alt"></i>

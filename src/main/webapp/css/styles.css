@@ -484,6 +484,24 @@ input:checked + .slider:before {
     text-decoration: underline;
 }
 
+.view-btn {
+    background-color: #4e73df;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.view-btn:hover {
+    background-color: #3a5ccc;
+}
+
+.view-btn i {
+    margin-right: 5px;
+}
+
 .logo-image {
     height: 40px;
     width: auto;

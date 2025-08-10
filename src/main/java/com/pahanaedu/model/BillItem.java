@@ -7,7 +7,8 @@ public class BillItem {
     private int quantity;
     private double price;
     private double subtotal;
-    private Item item; // Reference to the full item details
+    private Item item;
+    private String itemName;
 
     // Getters and Setters
     public int getBillItemId() {
@@ -65,4 +66,8 @@ public class BillItem {
     public void setItem(Item item) {
         this.item = item;
     }
+
+    public String getItemName() { return itemName; }
+
+    public void setItemName(String itemName) { this.itemName = itemName; }
 }

@@ -21,6 +21,19 @@ import com.itextpdf.text.pdf.PdfWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.Phrase;
+import com.itextpdf.text.Rectangle;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+import java.io.ByteArrayOutputStream;
+import java.text.SimpleDateFormat;
 
 @WebServlet("/billing")
 public class BillingServlet extends HttpServlet {
@@ -328,7 +341,7 @@ public class BillingServlet extends HttpServlet {
         }
     }
 
-    private byte[] generateBillPdf(Bill bill) {
+    private byte[] generateBillPdf(Bill bill) throws SQLException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Document document = new Document();
 
@@ -336,46 +349,125 @@ public class BillingServlet extends HttpServlet {
             PdfWriter.getInstance(document, baos);
             document.open();
 
-            // Add bill header
-            document.add(new Paragraph("PAHANA EDU - INVOICE"));
-            document.add(new Paragraph("Bill No: " + bill.getBillNo()));
-            document.add(new Paragraph("Date: " + new SimpleDateFormat("yyyy-MM-dd").format(bill.getCreatedDate())));
+            // Get customer details
+            Customer customer = customerDAO.getCustomerByAccountNo(bill.getCustomerId());
+
+            // Add company header
+            Paragraph companyHeader = new Paragraph("PAHANA EDU",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Font.BOLD));
+            companyHeader.setAlignment(Element.ALIGN_CENTER);
+            document.add(companyHeader);
+
+            Paragraph companySub = new Paragraph("Education Management System",
+                    FontFactory.getFont(FontFactory.HELVETICA, 12));
+            companySub.setAlignment(Element.ALIGN_CENTER);
+            document.add(companySub);
+
             document.add(new Paragraph(" "));
 
-            // Add customer info
-            Customer customer = customerDAO.getCustomerByAccountNo(bill.getCustomerId());
+            // Add invoice title
+            Paragraph invoiceTitle = new Paragraph("INVOICE",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, Font.BOLD));
+            invoiceTitle.setAlignment(Element.ALIGN_CENTER);
+            document.add(invoiceTitle);
+
+            document.add(new Paragraph(" "));
+
+            // Add bill info table
+            PdfPTable infoTable = new PdfPTable(2);
+            infoTable.setWidthPercentage(100);
+            infoTable.setWidths(new float[]{1, 1});
+
+            // Left column - Bill info
+            PdfPCell leftCell = new PdfPCell();
+            leftCell.setBorder(Rectangle.NO_BORDER);
+            leftCell.addElement(new Paragraph("Bill No: " + bill.getBillNo()));
+            leftCell.addElement(new Paragraph("Date: " + new SimpleDateFormat("yyyy-MM-dd HH:mm").format(bill.getCreatedDate())));
+            infoTable.addCell(leftCell);
+
+            // Right column - Customer info
+            PdfPCell rightCell = new PdfPCell();
+            rightCell.setBorder(Rectangle.NO_BORDER);
             if (customer != null) {
-                document.add(new Paragraph("Customer: " + customer.getName()));
-                document.add(new Paragraph("Account No: " + customer.getAccountNo()));
+                rightCell.addElement(new Paragraph("Customer: " + customer.getName()));
+                rightCell.addElement(new Paragraph("Account No: " + customer.getAccountNo()));
+                rightCell.addElement(new Paragraph("Phone: " + customer.getPhoneNo()));
             }
+            infoTable.addCell(rightCell);
+
+            document.add(infoTable);
             document.add(new Paragraph(" "));
 
             // Add items table
-            PdfPTable table = new PdfPTable(4);
-            table.addCell("Item");
-            table.addCell("Quantity");
-            table.addCell("Price");
-            table.addCell("Subtotal");
+            PdfPTable itemsTable = new PdfPTable(5);
+            itemsTable.setWidthPercentage(100);
+            itemsTable.setWidths(new float[]{3, 2, 2, 2, 3});
 
+            // Table headers
+            itemsTable.addCell(createHeaderCell("Description"));
+            itemsTable.addCell(createHeaderCell("Unit Price"));
+            itemsTable.addCell(createHeaderCell("Qty"));
+            itemsTable.addCell(createHeaderCell("Amount"));
+            itemsTable.addCell(createHeaderCell("Notes"));
+
+            // Add items
             for (BillItem item : bill.getItems()) {
                 Item dbItem = itemDAO.getItemById(item.getItemId());
                 if (dbItem != null) {
-                    table.addCell(dbItem.getName());
-                    table.addCell(String.valueOf(item.getQuantity()));
-                    table.addCell("LKR " + String.format("%.2f", item.getPrice()));
-                    table.addCell("LKR " + String.format("%.2f", item.getSubtotal()));
+                    itemsTable.addCell(createContentCell(dbItem.getName()));
+                    itemsTable.addCell(createContentCell("LKR " + String.format("%.2f", item.getPrice())));
+                    itemsTable.addCell(createContentCell(String.valueOf(item.getQuantity())));
+                    itemsTable.addCell(createContentCell("LKR " + String.format("%.2f", item.getSubtotal())));
+                    itemsTable.addCell(createContentCell(dbItem.getDescription() != null ? dbItem.getDescription() : ""));
                 }
             }
-            document.add(table);
+
+            document.add(itemsTable);
             document.add(new Paragraph(" "));
 
-            // Add totals
-            document.add(new Paragraph("Total: LKR " + String.format("%.2f", bill.getTotalAmount())));
-            document.add(new Paragraph("Payment Method: " + bill.getPaymentMethod()));
-            document.add(new Paragraph("Payment Details: " + bill.getPaymentDetails()));
+            // Add totals section
+            PdfPTable totalsTable = new PdfPTable(2);
+            totalsTable.setWidthPercentage(50);
+            totalsTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            totalsTable.setWidths(new float[]{2, 1});
+
+            // Calculate tax (8%)
+            double taxAmount = bill.getTotalAmount() * 0.08;
+            double totalWithTax = bill.getTotalAmount() + taxAmount;
+
+            totalsTable.addCell(createTotalLabelCell("Subtotal:"));
+            totalsTable.addCell(createTotalValueCell("LKR " + String.format("%.2f", bill.getTotalAmount())));
+
+            totalsTable.addCell(createTotalLabelCell("Tax (8%):"));
+            totalsTable.addCell(createTotalValueCell("LKR " + String.format("%.2f", taxAmount)));
+
+            totalsTable.addCell(createTotalLabelCell("Total:"));
+            totalsTable.addCell(createTotalValueCell("LKR " + String.format("%.2f", totalWithTax)));
+
+            document.add(totalsTable);
+            document.add(new Paragraph(" "));
+
+            // Payment information
+            Paragraph paymentInfo = new Paragraph("Payment Information",
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Font.BOLD));
+            document.add(paymentInfo);
+
+            document.add(new Paragraph("Method: " + bill.getPaymentMethod().toUpperCase()));
+            document.add(new Paragraph("Details: " + bill.getPaymentDetails()));
+            document.add(new Paragraph(" "));
+
+            // Footer
+            Paragraph footer = new Paragraph("Thank you for your business!",
+                    FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10));
+            footer.setAlignment(Element.ALIGN_CENTER);
+            document.add(footer);
+
+            Paragraph terms = new Paragraph("Terms & Conditions: Goods sold are not returnable.",
+                    FontFactory.getFont(FontFactory.HELVETICA, 8));
+            terms.setAlignment(Element.ALIGN_CENTER);
+            document.add(terms);
 
         } catch (DocumentException e) {
-            e.printStackTrace();
             throw new RuntimeException("Error generating PDF document", e);
         } finally {
             if (document != null && document.isOpen()) {
@@ -384,5 +476,38 @@ public class BillingServlet extends HttpServlet {
         }
 
         return baos.toByteArray();
+    }
+
+    // Helper methods for creating styled cells
+    private PdfPCell createHeaderCell(String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Font.BOLD)));
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setPadding(5);
+        return cell;
+    }
+
+    private PdfPCell createContentCell(String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text,
+                FontFactory.getFont(FontFactory.HELVETICA, 10)));
+        cell.setPadding(5);
+        return cell;
+    }
+
+    private PdfPCell createTotalLabelCell(String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text,
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Font.BOLD)));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        cell.setPadding(5);
+        return cell;
+    }
+
+    private PdfPCell createTotalValueCell(String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text,
+                FontFactory.getFont(FontFactory.HELVETICA, 10)));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setPadding(5);
+        return cell;
     }
 }

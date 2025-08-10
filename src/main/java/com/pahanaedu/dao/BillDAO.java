@@ -122,6 +122,35 @@ public class BillDAO {
         return null;
     }
 
+    public List<BillItem> getBillItems(int billId) throws SQLException {
+        String sql = "SELECT bi.*, i.name as item_name FROM bill_items bi " +
+                "JOIN items i ON bi.item_id = i.item_id " +
+                "WHERE bi.bill_id = ?";
+
+        List<BillItem> items = new ArrayList<>();
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, billId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    BillItem item = new BillItem();
+                    item.setBillItemId(rs.getInt("bill_item_id"));
+                    item.setBillId(rs.getInt("bill_id"));
+                    item.setItemId(rs.getInt("item_id"));
+                    item.setQuantity(rs.getInt("quantity"));
+                    item.setPrice(rs.getDouble("price"));
+                    item.setSubtotal(rs.getDouble("subtotal"));
+                    item.setItemName(rs.getString("item_name"));
+
+                    items.add(item);
+                }
+            }
+        }
+
+        return items;
+    }
+
     // Get bill by ID
     public Bill getBillById(int billId) {
         String billSQL = "SELECT * FROM bills WHERE bill_id = ?";

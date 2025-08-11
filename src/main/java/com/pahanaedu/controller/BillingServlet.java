@@ -58,33 +58,33 @@ public class BillingServlet extends HttpServlet {
             throws ServletException, IOException {
         String action = request.getParameter("action");
 
-        if ("checkCustomer".equals(action)) {
-            try {
-                checkCustomer(request, response);
-            } catch (SQLException ex) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                Map<String, String> errorResponse = new HashMap<>();
-                errorResponse.put("error", "Database error occurred");
-                response.getWriter().write(gson.toJson(errorResponse));
+        try {
+            switch (action) {
+                case "checkCustomer":
+                    checkCustomer(request, response);
+                    break;
+                case "downloadBill":
+                    downloadBill(request, response);
+                    break;
+                default:
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    Map<String, String> errorResponse = new HashMap<>();
+                    errorResponse.put("error", "Invalid action");
+                    response.getWriter().write(gson.toJson(errorResponse));
             }
-        }
-        else if ("downloadBill".equals(action)) {
-            try {
-                downloadBill(request, response);
-            } catch (SQLException ex) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                Map<String, String> errorResponse = new HashMap<>();
-                errorResponse.put("error", "Error generating bill download");
-                response.getWriter().write(gson.toJson(errorResponse));
-            }
-        }
-        else {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        } catch (SQLException ex) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Invalid action");
+            errorResponse.put("error", "Database error occurred: " + ex.getMessage());
             response.getWriter().write(gson.toJson(errorResponse));
+            ex.printStackTrace();
+        } catch (Exception ex) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Server error occurred: " + ex.getMessage());
+            response.getWriter().write(gson.toJson(errorResponse));
+            ex.printStackTrace();
         }
-
     }
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

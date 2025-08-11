@@ -7,6 +7,12 @@ import com.pahanaedu.util.DBConnection;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.text.SimpleDateFormat;
+import java.text.ParseException;
+import java.util.Calendar;
+import java.util.Date;
 
 public class BillDAO {
     private Connection connection;
@@ -95,6 +101,7 @@ public class BillDAO {
             connection.setAutoCommit(true);
         }
     }
+
 
     public Bill getBillByNumber(String billNo) throws SQLException {
         String sql = "SELECT * FROM bills WHERE bill_no = ?";
@@ -203,5 +210,5 @@ public class BillDAO {
         return bill;
     }
 
-    // Other methods like getBillsByCustomer, getRecentBills, etc. can be added here
+
 }

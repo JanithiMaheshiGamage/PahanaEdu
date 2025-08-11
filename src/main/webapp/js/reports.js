@@ -1,353 +1,326 @@
-// Global variables for chart instances
-let salesChart;
-let inventoryChart;
-
-// Initialize the page when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    initializePage();
-});
-
-function initializePage() {
-    // Set up current date and time
-    updateDateTime();
-    setInterval(updateDateTime, 1000);
-
-    // Initialize date pickers with default range (last 30 days)
-    setDefaultDateRange();
-
-    // Initialize charts with empty data
-    initializeCharts();
-
-    // Set up event listeners
-    setupEventListeners();
-
-    // Load initial data
-    loadInitialData();
-}
-
-function setDefaultDateRange() {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
-
-    document.getElementById('startDate').valueAsDate = startDate;
-    document.getElementById('endDate').valueAsDate = endDate;
-}
-
 function initializeCharts() {
-    // Initialize sales chart with empty data
-    const salesCtx = document.getElementById('salesChart').getContext('2d');
-    salesChart = new Chart(salesCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Daily Sales',
-                data: [],
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 2,
-                tension: 0.4
-            }]
-        },
-        options: getChartOptions('Daily Sales (LKR)')
-    });
-
-    // Initialize inventory chart
-    const inventoryCtx = document.getElementById('inventoryChart').getContext('2d');
-    inventoryChart = new Chart(inventoryCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Loading...'],
-            datasets: [{
-                data: [1],
-                backgroundColor: ['rgba(201, 203, 207, 0.7)']
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-}
-
-function getChartOptions(title) {
-    return {
+    // Common chart options
+    const chartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
-            title: {
-                display: true,
-                text: title
+            legend: {
+                position: 'top',
             },
             tooltip: {
                 callbacks: {
                     label: function(context) {
-                        return 'LKR ' + context.parsed.y.toFixed(2);
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return 'LKR ' + value;
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            if (context.dataset.label === 'Quantity Sold') {
+                                label += context.parsed.y;
+                            } else {
+                                label += 'LKR ' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                        return label;
                     }
                 }
             }
         }
     };
-}
 
-function setupEventListeners() {
-    // Filter form submission
-    document.getElementById('reportFilterForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        applyFilters();
-    });
-
-    // Export button
-    document.getElementById('exportBtn').addEventListener('click', exportReport);
-}
-
-function loadInitialData() {
-    applyFilters();
-}
-
-function updateDateTime() {
-    const now = new Date();
-    const options = {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    };
-    document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
-}
-
-async function applyFilters() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-
-    if (!validateDates(startDate, endDate)) {
-        return;
+    // Initialize charts based on report type
+    switch(window.reportData.reportType) {
+        case 'sales':
+            initializeSalesCharts(chartOptions);
+            break;
+        case 'inventory':
+            initializeInventoryCharts(chartOptions);
+            break;
+        case 'customer':
+            initializeCustomerCharts(chartOptions);
+            break;
+        case 'popular':
+            initializePopularItemsCharts(chartOptions);
+            break;
     }
 
-    try {
-        showLoadingState();
-        updatePeriodDisplay(startDate, endDate);
+    // Export PDF button
+    document.getElementById('exportPdf').addEventListener('click', function() {
+        const params = new URLSearchParams();
+        params.append('reportType', window.reportData.reportType);
+        params.append('startDate', window.reportData.startDate);
+        params.append('endDate', window.reportData.endDate);
 
-        // Construct URL with context path
-        const contextPath = window.location.pathname.split('/')[1] || '';
-        const url = `/${contextPath}/reports?action=getSalesData&startDate=${startDate}T00:00:00&endDate=${endDate}T23:59:59`;
+        window.open(`${window.reportData.contextPath}/export/report?${params.toString()}`, '_blank');
+    });
+}
 
-        console.log("Request URL:", url); // Debug log
+function initializeSalesCharts(options) {
+    // Fetch sales transactions data from backend
+    fetch(`${window.reportData.contextPath}/api/reports/sales?startDate=${window.reportData.startDate}&endDate=${window.reportData.endDate}`)
+        .then(response => response.json())
+        .then(data => {
+            // Daily Transactions Chart
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: data.dailyTransactions.labels,
+                    datasets: [{
+                        label: 'Daily Transactions',
+                        data: data.dailyTransactions.values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    ...options,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'LKR ' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
 
-        const response = await fetch(url, {
-            headers: {
-                'Accept': 'application/json'
-            }
+            // Payment Method Distribution Chart
+            const paymentCtx = document.getElementById('paymentMethodChart').getContext('2d');
+            new Chart(paymentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.paymentMethods.labels,
+                    datasets: [{
+                        label: 'Payment Methods',
+                        data: data.paymentMethods.values,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)',  // Cash
+                            'rgba(255, 99, 132, 0.7)',   // Card
+                            'rgba(255, 206, 86, 0.7)'    // Other payment methods if any
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(255, 206, 86, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...options,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: LKR ${value.toFixed(2)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading sales data:', error);
         });
-
-        if (!response.ok) {
-            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-        }
-
-        const reportData = await response.json();
-        updateDashboard(reportData);
-    } catch (error) {
-        handleError(error);
-    }
 }
 
-function validateDates(startDate, endDate) {
-    if (!startDate || !endDate) {
-        showError('Please select both start and end dates');
-        return false;
-    }
-
-    if (new Date(startDate) > new Date(endDate)) {
-        showError('End date must be after start date');
-        return false;
-    }
-
-    return true;
+function initializeInventoryCharts(options) {
+    // Fetch inventory data from backend
+    fetch(`${window.reportData.contextPath}/api/reports/inventory`)
+        .then(response => response.json())
+        .then(data => {
+            // Inventory by Category Chart
+            const inventoryCtx = document.getElementById('inventoryChart').getContext('2d');
+            new Chart(inventoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.categories,
+                    datasets: [{
+                        label: 'Items in Stock',
+                        data: data.stockLevels,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...options,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading inventory data:', error);
+        });
 }
 
-function showLoadingState() {
-    document.getElementById('totalRevenue').textContent = 'Loading...';
-    document.getElementById('transactionCount').textContent = 'Loading...';
+function initializeCustomerCharts(options) {
+    // Fetch customer transactions data from backend
+    fetch(`${window.reportData.contextPath}/api/reports/customers?startDate=${window.reportData.startDate}&endDate=${window.reportData.endDate}`)
+        .then(response => response.json())
+        .then(data => {
+            // Customer Transactions Chart
+            const customerCtx = document.getElementById('customerChart').getContext('2d');
+            new Chart(customerCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.customerActivity.labels,
+                    datasets: [
+                        {
+                            label: 'Transactions',
+                            data: data.customerActivity.transactions,
+                            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Revenue',
+                            data: data.customerActivity.revenue,
+                            backgroundColor: 'rgba(153, 102, 255, 0.7)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    ...options,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Transactions'
+                            }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Revenue (LKR)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return 'LKR ' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading customer data:', error);
+        });
 }
 
-async function fetchReportData(startDate, endDate) {
-    const response = await fetch(`/reports?action=getSalesData&startDate=${startDate}&endDate=${endDate}`);
+function initializePopularItemsCharts(options) {
+    // Fetch popular items data from backend
+    fetch(`${window.reportData.contextPath}/api/reports/popular-items?startDate=${window.reportData.startDate}&endDate=${window.reportData.endDate}`)
+        .then(response => response.json())
+        .then(data => {
+            // Popular Items Chart
+            const popularCtx = document.getElementById('popularItemsChart').getContext('2d');
 
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
+            // Sort items by quantity sold (descending)
+            const sortedItems = [...data.items].sort((a, b) => b.quantity - a.quantity);
+            const topItems = sortedItems.slice(0, 10);
 
-    const data = await response.json();
-
-    if (!data.success) {
-        throw new Error(data.message || 'Failed to load report data');
-    }
-
-    return data;
+            new Chart(popularCtx, {
+                type: 'bar',
+                data: {
+                    labels: topItems.map(item => item.name),
+                    datasets: [
+                        {
+                            label: 'Quantity Sold',
+                            data: topItems.map(item => item.quantity),
+                            backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                            borderColor: 'rgba(255, 159, 64, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Revenue',
+                            data: topItems.map(item => item.total),
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    ...options,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Quantity Sold'
+                            }
+                        },
+                        x1: {
+                            beginAtZero: true,
+                            position: 'top',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Revenue (LKR)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return 'LKR ' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading popular items data:', error);
+        });
 }
 
-function updateDashboard(data) {
-    // Update summary metrics
-    updateSummaryMetrics(data.summary);
-
-    // Update sales chart
-    updateSalesChart(data.dailySales);
-
-    // Update tables
-    updateSalesByCategoryTable(data.byCategory);
-    updateTopSellingItemsTable(data.topItems);
-}
-
-function updateSummaryMetrics(summary) {
-    document.getElementById('totalRevenue').textContent = formatCurrency(summary.totalRevenue);
-    document.getElementById('transactionCount').textContent = summary.transactionCount.toLocaleString();
-}
-
-function updateSalesChart(dailySales) {
-    const labels = dailySales.map(item => formatDateForChart(new Date(item.date)));
-    const data = dailySales.map(item => item.total || 0);
-
-    salesChart.data.labels = labels;
-    salesChart.data.datasets[0].data = data;
-    salesChart.update();
-}
-
-function formatDateForChart(date) {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function updateSalesByCategoryTable(categories) {
-    const tbody = document.querySelector('.report-table:first-of-type tbody');
-    tbody.innerHTML = '';
-
-    categories.forEach(category => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${category.category}</td>
-            <td>${category.itemsSold}</td>
-            <td>${formatCurrency(category.totalRevenue)}</td>
-            <td>${category.percentage}%</td>
-        `;
-        tbody.appendChild(row);
+// Notification handling
+document.querySelectorAll('.close-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        this.closest('.notification').remove();
     });
-}
+});
 
-function updateTopSellingItemsTable(items) {
-    const tbody = document.querySelector('.report-table:last-of-type tbody');
-    tbody.innerHTML = '';
-
-    items.forEach(item => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${item.item}</td>
-            <td>${item.category}</td>
-            <td>${item.quantitySold}</td>
-            <td>${formatCurrency(item.revenue)}</td>
-        `;
-        tbody.appendChild(row);
+// Auto-close notifications after 5 seconds
+setTimeout(() => {
+    document.querySelectorAll('.notification').forEach(notification => {
+        notification.remove();
     });
-}
+}, 5000);
 
-function updatePeriodDisplay(startDate, endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    document.getElementById('salesPeriod').textContent =
-        `${formatDateForDisplay(start)} to ${formatDateForDisplay(end)}`;
-}
-
-function formatDateForDisplay(date) {
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-
-function formatCurrency(amount) {
-    return 'LKR ' + (amount || 0).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
-
-function exportReport() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-
-    if (!validateDates(startDate, endDate)) {
-        return;
-    }
-
-    // Show loading state on button
-    const exportBtn = document.getElementById('exportBtn');
-    const originalHtml = exportBtn.innerHTML;
-    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
-    exportBtn.disabled = true;
-
-    // Trigger download
-    const url = `/reports/export?startDate=${startDate}&endDate=${endDate}`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sales_report_${startDate}_to_${endDate}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // Reset button after delay
-    setTimeout(() => {
-        exportBtn.innerHTML = originalHtml;
-        exportBtn.disabled = false;
-    }, 2000);
-}
-
-function handleError(error) {
-    console.error('Error:', error);
-    showError(error.message);
-    resetMetrics();
-}
-
-function resetMetrics() {
-    document.getElementById('totalRevenue').textContent = 'LKR 0.00';
-    document.getElementById('transactionCount').textContent = '0';
-}
-
-function showError(message) {
-    // Remove any existing errors
-    const existingErrors = document.querySelectorAll('.error-message');
-    existingErrors.forEach(el => el.remove());
-
-    // Create error element
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message alert alert-danger';
-    errorDiv.innerHTML = `
-        <i class="fas fa-exclamation-circle"></i>
-        <span>${message}</span>
-    `;
-
-    // Insert error message
-    const contentWrapper = document.querySelector('.content-wrapper');
-    contentWrapper.insertBefore(errorDiv, contentWrapper.firstChild);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        errorDiv.remove();
-    }, 5000);
-}
+// Initialize charts when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+});

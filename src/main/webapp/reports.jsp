@@ -1,14 +1,60 @@
-<%@ page import="com.pahanaedu.model.User" %>
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page import="com.pahanaedu.dao.ReportDAO" %>
+<%@ page import="com.pahanaedu.model.ReportItem" %>
+<%@ page import="java.util.List" %>
+<%@ page import="java.text.SimpleDateFormat" %>
+<%@ page import="java.util.Calendar" %>
+<%@ page import="com.pahanaedu.util.DBConnection" %>
+<%@ page import="java.sql.Connection" %>
+<%@ page import="java.sql.SQLException" %>
 <%
+    // Check if user is logged in
     HttpSession httpSession = request.getSession(false);
     String username = (httpSession != null) ? (String) httpSession.getAttribute("username") : null;
     String role = (httpSession != null) ? (String) httpSession.getAttribute("role") : null;
+    Integer userId = (httpSession != null) ? (Integer) httpSession.getAttribute("userId") : null;
 
-    if (username == null || !"admin".equals(role)) {
+    if (username == null) {
         response.sendRedirect("login.jsp");
         return;
     }
+
+    // Initialize ReportDAO with database connection
+    Connection connection = null;
+    ReportDAO reportDAO = null;
+    try {
+        connection = DBConnection.getConnection();
+        reportDAO = new ReportDAO(connection);
+    } catch (SQLException e) {
+        throw new ServletException("Database connection failed: " + e.getMessage(), e);
+    }
+
+    // Default date range (current month)
+    Calendar cal = Calendar.getInstance();
+    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    String endDate = dateFormat.format(cal.getTime());
+    cal.set(Calendar.DAY_OF_MONTH, 1);
+    String startDate = dateFormat.format(cal.getTime());
+
+    // Get parameters if submitted
+    String paramStartDate = request.getParameter("startDate");
+    String paramEndDate = request.getParameter("endDate");
+    String reportType = request.getParameter("reportType");
+
+    if (paramStartDate != null && !paramStartDate.isEmpty()) {
+        startDate = paramStartDate;
+    }
+    if (paramEndDate != null && !paramEndDate.isEmpty()) {
+        endDate = paramEndDate;
+    }
+    if (reportType == null || reportType.isEmpty()) {
+        reportType = "sales";
+    }
+
+    // Notification variables
+    String success = (String) httpSession.getAttribute("success");
+    String error = (String) httpSession.getAttribute("error");
+    if (success != null) httpSession.removeAttribute("success");
+    if (error != null) httpSession.removeAttribute("error");
 %>
 
 <!DOCTYPE html>
@@ -20,173 +66,346 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
+<!-- Notification Messages -->
+<% if (success != null) { %>
+<div class="notification success">
+    <span><%= success %></span>
+    <button class="close-btn">&times;</button>
+</div>
+<% } %>
+<% if (error != null) { %>
+<div class="notification error">
+    <span><%= error %></span>
+    <button class="close-btn">&times;</button>
+</div>
+<% } %>
+
 <div class="admin-container">
+    <!-- Sidebar -->
+    <% if ("admin".equals(role)) { %>
     <jsp:include page="sidebar.jsp">
         <jsp:param name="activePage" value="reports" />
     </jsp:include>
+    <% } else { %>
+    <jsp:include page="staff_sidebar.jsp">
+        <jsp:param name="activePage" value="reports" />
+    </jsp:include>
+    <% } %>
 
+    <!-- Main Content -->
     <div class="main-content">
+        <!-- Topbar -->
         <div class="topbar">
             <div class="logo"><img src="images/Topnavlogo.png" alt="PAHANA EDU Logo" class="logo-image"></div>
             <div class="datetime" id="currentDateTime"></div>
         </div>
 
+        <!-- Content Wrapper -->
         <div class="content-wrapper">
             <h1 class="page-title">Reports Dashboard</h1>
 
+            <!-- Report Filters -->
             <div class="report-filters">
-                <form id="reportFilterForm">
-                    <div class="form-row">
-
-                        <div class="form-group">
-                            <label for="startDate">From</label>
-                            <input type="date" id="startDate" name="startDate" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="endDate">To</label>
-                            <input type="date" id="endDate" name="endDate" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-filter"></i> Apply Filters
-                            </button>
-                            <button type="button" id="exportBtn" class="btn btn-secondary">
-                                <i class="fas fa-file-export"></i> Export
-                            </button>
-                        </div>
+                <form method="get" class="filter-form">
+                    <div class="form-group">
+                        <label for="reportType">Report Type</label>
+                        <select id="reportType" name="reportType" class="form-control">
+                            <option value="sales" <%= "sales".equals(reportType) ? "selected" : "" %>>Sales Transactions</option>
+                            <option value="inventory" <%= "inventory".equals(reportType) ? "selected" : "" %>>Inventory Report</option>
+                            <option value="customer" <%= "customer".equals(reportType) ? "selected" : "" %>>Customer Transactions</option>
+                            <option value="popular" <%= "popular".equals(reportType) ? "selected" : "" %>>Popular Items</option>
+                        </select>
                     </div>
+
+                    <div class="form-group">
+                        <label for="startDate">Start Date</label>
+                        <input type="date" id="startDate" name="startDate" class="form-control"
+                               value="<%= startDate %>" max="<%= endDate %>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="endDate">End Date</label>
+                        <input type="date" id="endDate" name="endDate" class="form-control"
+                               value="<%= endDate %>" min="<%= startDate %>">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Generate Report</button>
+                    <button type="button" id="exportPdf" class="btn btn-secondary">Export PDF</button>
                 </form>
             </div>
 
-            <div class="report-cards">
-                <div class="report-card">
-                    <div class="report-card-header">
-                        <h3><i class="fas fa-chart-line"></i> Sales Summary</h3>
-                        <span class="report-period" id="salesPeriod">Last 30 Days</span>
-                    </div>
-                    <div class="report-card-body">
-                        <div class="report-metric">
-                            <span class="metric-value" id="totalRevenue">
-                                LKR <fmt:formatNumber value="${salesSummary.totalRevenue}" type="number" minFractionDigits="2" maxFractionDigits="2"/>
-                            </span>
-                            <span class="metric-label">Total Revenue</span>
-                        </div>
-                        <div class="report-metric">
-                            <span class="metric-value" id="transactionCount">
-                                <fmt:formatNumber value="${salesSummary.transactionCount}" type="number"/>
-                            </span>
-                            <span class="metric-label">Transactions</span>
-                        </div>
-                        <div class="report-chart">
-                            <canvas id="salesChart" height="150"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="report-card">
-                    <div class="report-card-header">
-                        <h3><i class="fas fa-boxes"></i> Inventory Status</h3>
-                        <span class="report-period">Current Stock</span>
-                    </div>
-                    <div class="report-card-body">
-                        <div class="report-metric">
-                            <span class="metric-value">42</span>
-                            <span class="metric-label">Low Stock Items</span>
-                        </div>
-                        <div class="report-metric">
-                            <span class="metric-value">1,248</span>
-                            <span class="metric-label">Total Items</span>
-                        </div>
-                        <div class="report-chart">
-                            <canvas id="inventoryChart" height="150"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="detailed-reports">
-                <h2 class="section-title">Detailed Reports</h2>
-
+            <!-- Report Content -->
+            <div class="report-content">
+                <% if ("sales".equals(reportType)) { %>
+                <!-- Sales Transactions Report -->
                 <div class="report-section">
-                    <h3>Sales by Category</h3>
-                    <div class="table-responsive">
+                    <h2>Transactions Summary</h2>
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h3>Total Transactions</h3>
+                            <p><%= reportDAO.getTransactionCount(startDate, endDate) %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Total Revenue</h3>
+                            <p>LKR <%= String.format("%.2f", reportDAO.getTotalRevenue(startDate, endDate)) %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Avg. Transaction Value</h3>
+                            <p>LKR <%= String.format("%.2f", reportDAO.getAverageTransactionValue(startDate, endDate)) %></p>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="paymentMethodChart"></canvas>
+                    </div>
+
+                    <h3>Recent Transactions</h3>
+                    <div class="table-container">
                         <table class="report-table">
                             <thead>
                             <tr>
-                                <th>Category</th>
-                                <th>Items Sold</th>
-                                <th>Total Revenue</th>
-                                <th>% of Total</th>
+                                <th>Transaction ID</th>
+                                <th>Bill No</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th>Date</th>
                             </tr>
                             </thead>
                             <tbody>
+                            <% for (ReportItem transaction : reportDAO.getRecentTransactions(startDate, endDate, 10)) { %>
                             <tr>
-                                <td>Books</td>
-                                <td>156</td>
-                                <td>LKR 78,400</td>
-                                <td>32%</td>
+                                <td><%= transaction.getTransactionId() %></td>
+                                <td><%= transaction.getBillNumber() %></td>
+                                <td><%= transaction.getCustomerName() %></td>
+                                <td>LKR <%= String.format("%.2f", transaction.getAmount()) %></td>
+                                <td><%= transaction.getPaymentMethod() %></td>
+                                <td><%= dateFormat.format(transaction.getTransactionDate()) %></td>
                             </tr>
-                            <tr>
-                                <td>Stationery</td>
-                                <td>89</td>
-                                <td>LKR 42,300</td>
-                                <td>17%</td>
-                            </tr>
-                            <tr>
-                                <td>Electronics</td>
-                                <td>45</td>
-                                <td>LKR 125,100</td>
-                                <td>51%</td>
-                            </tr>
+                            <% } %>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
+                <% } else if ("inventory".equals(reportType)) { %>
+                <!-- Inventory Report -->
                 <div class="report-section">
-                    <h3>Top Selling Items</h3>
-                    <div class="table-responsive">
+                    <h2>Inventory Status</h2>
+
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h3>Total Items</h3>
+                            <p><%= reportDAO.getItemCount() %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Low Stock Items</h3>
+                            <p><%= reportDAO.getLowStockItemCount(5) %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Out of Stock</h3>
+                            <p><%= reportDAO.getOutOfStockItemCount() %></p>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="inventoryChart"></canvas>
+                    </div>
+
+                    <h3>Low Stock Items</h3>
+                    <div class="table-container">
                         <table class="report-table">
                             <thead>
                             <tr>
-                                <th>Item</th>
+                                <th>Item ID</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock Qty</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <% for (ReportItem item : reportDAO.getLowStockItems(5)) { %>
+                            <tr>
+                                <td><%= item.getItemId() %></td>
+                                <td><%= item.getItemName() %></td>
+                                <td><%= item.getCategoryName() %></td>
+                                <td>LKR <%= String.format("%.2f", item.getPrice()) %></td>
+                                <td class="<%= item.getStockQuantity() == 0 ? "text-danger" : "text-warning" %>">
+                                    <%= item.getStockQuantity() %>
+                                </td>
+                            </tr>
+                            <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <% } else if ("customer".equals(reportType)) { %>
+                <!-- Customer Transactions Report -->
+                <div class="report-section">
+                    <h2>Customer Transactions</h2>
+
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h3>Total Customers</h3>
+                            <p><%= reportDAO.getCustomerCount() %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Active Customers</h3>
+                            <p><%= reportDAO.getActiveCustomerCount(startDate, endDate) %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Avg. Transactions per Customer</h3>
+                            <p><%= String.format("%.1f", reportDAO.getAverageTransactionsPerCustomer(startDate, endDate)) %></p>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="customerChart"></canvas>
+                    </div>
+
+                    <h3>Top Customers by Spending</h3>
+                    <div class="table-container">
+                        <table class="report-table">
+                            <thead>
+                            <tr>
+                                <th>Customer ID</th>
+                                <th>Name</th>
+                                <th>Total Transactions</th>
+                                <th>Total Spent</th>
+                                <th>Last Transaction</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <% for (ReportItem customer : reportDAO.getTopSpendingCustomers(startDate, endDate, 10)) { %>
+                            <tr>
+                                <td><%= customer.getCustomerId() %></td>
+                                <td><%= customer.getCustomerName() %></td>
+                                <td><%= customer.getTransactionCount() %></td>
+                                <td>LKR <%= String.format("%.2f", customer.getTotalSpent()) %></td>
+                                <td><%= dateFormat.format(customer.getLastTransactionDate()) %></td>
+                            </tr>
+                            <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <% } else if ("popular".equals(reportType)) { %>
+                <!-- Popular Items Report -->
+                <div class="report-section">
+                    <h2>Popular Items</h2>
+
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h3>Most Sold Item</h3>
+                            <p><%= reportDAO.getTopSellingItems(startDate, endDate, 1).get(0).getItemName() %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Total Items Sold</h3>
+                            <p><%= reportDAO.getTotalItemsSoldCount(startDate, endDate) %></p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Avg. Items per Transaction</h3>
+                            <p><%= String.format("%.1f", reportDAO.getAverageItemsPerTransaction(startDate, endDate)) %></p>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="popularItemsChart"></canvas>
+                    </div>
+
+                    <h3>Top Selling Items</h3>
+                    <div class="table-container">
+                        <table class="report-table">
+                            <thead>
+                            <tr>
+                                <th>Item ID</th>
+                                <th>Name</th>
                                 <th>Category</th>
                                 <th>Quantity Sold</th>
-                                <th>Revenue</th>
+                                <th>Total Revenue</th>
                             </tr>
                             </thead>
                             <tbody>
+                            <% for (ReportItem item : reportDAO.getTopSellingItems(startDate, endDate, 10)) { %>
                             <tr>
-                                <td>Advanced Mathematics</td>
-                                <td>Books</td>
-                                <td>42</td>
-                                <td>LKR 25,200</td>
+                                <td><%= item.getItemId() %></td>
+                                <td><%= item.getItemName() %></td>
+                                <td><%= item.getCategoryName() %></td>
+                                <td><%= item.getQuantitySold() %></td>
+                                <td>LKR <%= String.format("%.2f", item.getTotalRevenue()) %></td>
                             </tr>
-                            <tr>
-                                <td>Wireless Mouse</td>
-                                <td>Electronics</td>
-                                <td>38</td>
-                                <td>LKR 45,600</td>
-                            </tr>
-                            <tr>
-                                <td>Premium Notebook</td>
-                                <td>Stationery</td>
-                                <td>35</td>
-                                <td>LKR 17,500</td>
-                            </tr>
+                            <% } %>
                             </tbody>
                         </table>
                     </div>
                 </div>
+                <% } %>
             </div>
         </div>
     </div>
 </div>
 
 <script src="js/reports.js"></script>
+<script>
+    window.reportData = {
+        reportType: '<%= reportType %>',
+        startDate: '<%= startDate %>',
+        endDate: '<%= endDate %>',
+        contextPath: '${pageContext.request.contextPath}'
+    };
+
+    // Initialize charts after page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCharts();
+
+        // Update current date and time
+        function updateDateTime() {
+            const now = new Date();
+            const options = {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            };
+            document.getElementById('currentDateTime').textContent = now.toLocaleString('en-GB', options);
+        }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+
+        // Date validation
+        document.getElementById('startDate').addEventListener('change', function() {
+            document.getElementById('endDate').min = this.value;
+        });
+
+        document.getElementById('endDate').addEventListener('change', function() {
+            document.getElementById('startDate').max = this.value;
+        });
+    });
+</script>
 </body>
 </html>
+
+<%
+    // Close database connection
+    if (connection != null) {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            System.err.println("Error closing database connection: " + e.getMessage());
+        }
+    }
+%>

@@ -56,82 +56,62 @@ function initializeCharts() {
 }
 
 function initializeSalesCharts(options) {
-    // Fetch sales transactions data from backend
     fetch(`${window.reportData.contextPath}/api/reports/sales?startDate=${window.reportData.startDate}&endDate=${window.reportData.endDate}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
-            // Daily Transactions Chart
-            const salesCtx = document.getElementById('salesChart').getContext('2d');
-            new Chart(salesCtx, {
-                type: 'line',
-                data: {
-                    labels: data.dailyTransactions.labels,
-                    datasets: [{
-                        label: 'Daily Transactions',
-                        data: data.dailyTransactions.values,
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        tension: 0.1,
-                        fill: true
-                    }]
-                },
-                options: {
-                    ...options,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return 'LKR ' + value.toFixed(2);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            // Daily Sales Chart
+            const salesCtx = document.getElementById('salesChart');
+            if (salesCtx) {
+                new Chart(salesCtx, {
+                    type: 'line',
+                    data: {
+                        labels: data.dailySales.labels,
+                        datasets: [{
+                            label: 'Daily Sales',
+                            data: data.dailySales.values,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1,
+                            fill: true
+                        }]
+                    },
+                    options: options
+                });
+            }
 
-            // Payment Method Distribution Chart
-            const paymentCtx = document.getElementById('paymentMethodChart').getContext('2d');
-            new Chart(paymentCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: data.paymentMethods.labels,
-                    datasets: [{
-                        label: 'Payment Methods',
-                        data: data.paymentMethods.values,
-                        backgroundColor: [
-                            'rgba(54, 162, 235, 0.7)',  // Cash
-                            'rgba(255, 99, 132, 0.7)',   // Card
-                            'rgba(255, 206, 86, 0.7)'    // Other payment methods if any
-                        ],
-                        borderColor: [
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(255, 206, 86, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    ...options,
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = Math.round((value / total) * 100);
-                                    return `${label}: LKR ${value.toFixed(2)} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            // Payment Method Chart
+            const paymentCtx = document.getElementById('paymentMethodChart');
+            if (paymentCtx) {
+                new Chart(paymentCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.paymentMethods.labels,
+                        datasets: [{
+                            label: 'Payment Methods',
+                            data: data.paymentMethods.values,
+                            backgroundColor: [
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(255, 99, 132, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 99, 132, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: options
+                });
+            }
         })
         .catch(error => {
             console.error('Error loading sales data:', error);
+            // Optional: Display error message to user
         });
 }
 

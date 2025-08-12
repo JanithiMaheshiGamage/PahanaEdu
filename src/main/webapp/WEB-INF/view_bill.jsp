@@ -60,7 +60,7 @@
     <tbody>
     <% for (BillItem item : items) { %>
     <tr>
-        <td><%= item.getItemName() %></td>
+        <td><%= item.getItem() != null ? item.getItem().getName() : item.getItemName() %></td>
         <td>LKR <%= String.format("%.2f", item.getPrice()) %></td>
         <td><%= item.getQuantity() %></td>
         <td>LKR <%= String.format("%.2f", item.getSubtotal()) %></td>

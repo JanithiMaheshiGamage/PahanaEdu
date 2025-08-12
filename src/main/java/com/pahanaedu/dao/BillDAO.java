@@ -161,7 +161,9 @@ public class BillDAO {
     // Get bill by ID
     public Bill getBillById(int billId) {
         String billSQL = "SELECT * FROM bills WHERE bill_id = ?";
-        String itemsSQL = "SELECT * FROM bill_items WHERE bill_id = ?";
+        String itemsSQL = "SELECT bi.*, i.name as item_name FROM bill_items bi " +
+                "JOIN items i ON bi.item_id = i.item_id " +
+                "WHERE bi.bill_id = ?";
 
         Bill bill = null;
 
@@ -194,6 +196,7 @@ public class BillDAO {
                                 item.setQuantity(itemsRs.getInt("quantity"));
                                 item.setPrice(itemsRs.getDouble("price"));
                                 item.setSubtotal(itemsRs.getDouble("subtotal"));
+                                item.setItemName(itemsRs.getString("item_name"));
 
                                 items.add(item);
                             }

@@ -58,7 +58,7 @@
             <% } %>
 
             <div class="form-container <%= verified ? "verified" : "" %>">
-                <!-- Verification Form (shown first) -->
+
                 <form method="post" action="resetPassword" class="user-form verification-fields">
                     <input type="hidden" name="action" value="verify">
 
@@ -79,7 +79,7 @@
                     </div>
                 </form>
 
-                <!-- Password Reset Form (shown after verification) -->
+
                 <form method="post" action="resetPassword" class="user-form password-fields"
                       onsubmit="return validatePassword()">
                     <input type="hidden" name="action" value="reset">

@@ -71,10 +71,7 @@ public class DBConnection {
         }
     }
 
-    /**
-     * Safely closes a connection without throwing exceptions
-     * @param connection The connection to close
-     */
+
     public static void closeConnectionQuietly(Connection connection) {
         if (connection != null) {
             try {
@@ -88,11 +85,6 @@ public class DBConnection {
         }
     }
 
-    /**
-     * Validates if a connection is still active
-     * @param connection The connection to validate
-     * @return true if valid, false otherwise
-     */
     public static boolean isValidConnection(Connection connection) {
         if (connection == null) {
             return false;
@@ -106,10 +98,6 @@ public class DBConnection {
         }
     }
 
-    /**
-     * Test method to verify database connectivity
-     * @return true if connection test succeeds
-     */
     public static boolean testConnection() {
         Connection conn = null;
         try {

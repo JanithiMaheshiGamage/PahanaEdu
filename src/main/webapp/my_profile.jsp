@@ -296,7 +296,7 @@
             return true;
         }
 
-        // Password change form validation
+        // Password change form validation and submission
         document.getElementById('passwordForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -305,49 +305,88 @@
             const confirmPassword = document.getElementById('confirmPassword').value;
             const updatePasswordBtn = document.getElementById('updatePasswordBtn');
 
-            if (!currentPassword || !newPassword || !confirmPassword) {
-                alert('Please fill all password fields');
-                return false;
-            }
+            // Clear previous messages
+            document.querySelectorAll('#passwordModal p').forEach(p => p.remove());
 
-            if (newPassword.length < 8 ||
-                !/[A-Z]/.test(newPassword) ||
-                !/[a-z]/.test(newPassword) ||
-                !/[0-9]/.test(newPassword)) {
-                alert('New password must be at least 8 characters with uppercase, lowercase, and numbers');
-                return false;
+            // Validate inputs
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showPasswordError('All fields are required');
+                return;
             }
 
             if (newPassword !== confirmPassword) {
-                alert('New password and confirmation do not match');
-                return false;
+                showPasswordError('New password and confirmation do not match');
+                return;
+            }
+
+            if (!isPasswordStrong(newPassword)) {
+                showPasswordError('Password must be at least 8 characters with uppercase, lowercase, and numbers');
+                return;
             }
 
             // Show loading state
             updatePasswordBtn.disabled = true;
-            updatePasswordBtn.classList.add('btn-loading');
-            updatePasswordBtn.textContent = 'Updating...';
+            updatePasswordBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
 
-            // Submit form asynchronously
+            // Submit form via fetch API
             fetch(this.action, {
                 method: 'POST',
-                body: new FormData(this)
+                body: new FormData(this),
+                headers: {
+                    'Accept': 'application/json'
+                }
             })
                 .then(response => {
                     if (response.redirected) {
                         window.location.href = response.url;
                     } else {
-                        return response.text();
+                        return response.json();
+                    }
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        showPasswordSuccess(data.message || 'Password updated successfully');
+                        // Clear form fields
+                        this.reset();
+                        // Optionally close modal after delay
+                        setTimeout(() => {
+                            passwordModal.style.display = 'none';
+                        }, 2000);
+                    } else if (data && data.error) {
+                        showPasswordError(data.error);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    showPasswordError('An error occurred while changing your password');
+                })
+                .finally(() => {
                     updatePasswordBtn.disabled = false;
-                    updatePasswordBtn.classList.remove('btn-loading');
-                    updatePasswordBtn.textContent = 'Update Password';
-                    alert('An error occurred while changing your password');
+                    updatePasswordBtn.innerHTML = 'Update Password';
                 });
         });
+
+// Helper functions for password modal messages
+        function showPasswordError(message) {
+            const errorElement = document.createElement('p');
+            errorElement.style.color = 'red';
+            errorElement.textContent = message;
+            document.getElementById('passwordForm').prepend(errorElement);
+        }
+
+        function showPasswordSuccess(message) {
+            const successElement = document.createElement('p');
+            successElement.style.color = 'green';
+            successElement.textContent = message;
+            document.getElementById('passwordForm').prepend(successElement);
+        }
+
+        function isPasswordStrong(password) {
+            return password.length >= 8 &&
+                /[A-Z]/.test(password) &&
+                /[a-z]/.test(password) &&
+                /\d/.test(password);
+        }
     });
 </script>
 </body>

@@ -6,6 +6,12 @@
 <%@ page import="com.pahanaedu.util.DBConnection" %>
 <%@ page import="java.sql.Connection" %>
 <%@ page import="java.sql.SQLException" %>
+<%@ page import="java.util.Collections" %>
+<%@ page import="org.apache.logging.log4j.Logger" %>
+<%@ page import="org.apache.logging.log4j.LogManager" %>
+<%!
+    private static final Logger logger = LogManager.getLogger("ReportsJSP");
+%>
 <%
     // Check if user is logged in
     HttpSession httpSession = request.getSession(false);
@@ -18,14 +24,17 @@
         return;
     }
 
-    // Initialize ReportDAO with database connection
+    // Initialize variables
     Connection connection = null;
     ReportDAO reportDAO = null;
+    String errorMessage = null;
+
     try {
         connection = DBConnection.getConnection();
         reportDAO = new ReportDAO(connection);
     } catch (SQLException e) {
-        throw new ServletException("Database connection failed: " + e.getMessage(), e);
+        errorMessage = "Database connection failed. Please try again later.";
+        logger.error("Database connection error", e);
     }
 
     // Default date range (current month)
@@ -68,6 +77,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
 
@@ -81,6 +91,12 @@
 <% if (error != null) { %>
 <div class="notification error">
     <span><%= error %></span>
+    <button class="close-btn">&times;</button>
+</div>
+<% } %>
+<% if (errorMessage != null) { %>
+<div class="notification error">
+    <span><%= errorMessage %></span>
     <button class="close-btn">&times;</button>
 </div>
 <% } %>
@@ -111,14 +127,14 @@
 
             <!-- Report Filters -->
             <div class="report-filters">
-                <form method="get" class="filter-form">
+                <form method="get" class="filter-form" id="reportFilterForm">
                     <div class="form-group">
                         <label for="reportType">Report Type</label>
-                        <select id="reportType" name="reportType" class="form-control">
+                        <select id="reportType" name="reportType" class="form-control" onchange="this.form.submit()">
                             <option value="sales" <%= "sales".equals(reportType) ? "selected" : "" %>>Sales Transactions</option>
-                            <option value="inventory" <%= "inventory".equals(reportType) ? "selected" : "" %>>Inventory Report</option>
+                            <!--<option value="inventory" <%= "inventory".equals(reportType) ? "selected" : "" %>>Inventory Report</option>
                             <option value="customer" <%= "customer".equals(reportType) ? "selected" : "" %>>Customer Transactions</option>
-                            <option value="popular" <%= "popular".equals(reportType) ? "selected" : "" %>>Popular Items</option>
+                            <option value="popular" <%= "popular".equals(reportType) ? "selected" : "" %>>Popular Items</option>-->
                         </select>
                     </div>
 
@@ -141,7 +157,9 @@
 
             <!-- Report Content -->
             <div class="report-content">
-                <% if ("sales".equals(reportType)) { %>
+                <% if (reportDAO == null) { %>
+                <div class="alert alert-danger">Report service is currently unavailable. Please try again later.</div>
+                <% } else if ("sales".equals(reportType)) { %>
                 <!-- Sales Transactions Report -->
                 <div class="report-section">
                     <h2>Transactions Summary</h2>
@@ -169,6 +187,8 @@
                     </div>
 
                     <h3>Recent Transactions</h3>
+                    <% List<ReportItem> recentTransactions = reportDAO.getRecentTransactions(startDate, endDate, 10); %>
+                    <% if (recentTransactions != null && !recentTransactions.isEmpty()) { %>
                     <div class="table-container">
                         <table class="report-table">
                             <thead>
@@ -182,19 +202,22 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <% for (ReportItem transaction : reportDAO.getRecentTransactions(startDate, endDate, 10)) { %>
+                            <% for (ReportItem transaction : recentTransactions) { %>
                             <tr>
                                 <td><%= transaction.getTransactionId() %></td>
                                 <td><%= transaction.getBillNumber() %></td>
-                                <td><%= transaction.getCustomerName() %></td>
+                                <td><%= transaction.getCustomerName() != null ? transaction.getCustomerName() : "N/A" %></td>
                                 <td>LKR <%= String.format("%.2f", transaction.getAmount()) %></td>
-                                <td><%= transaction.getPaymentMethod() %></td>
-                                <td><%= dateFormat.format(transaction.getTransactionDate()) %></td>
+                                <td><%= transaction.getPaymentMethod() != null ? transaction.getPaymentMethod() : "N/A" %></td>
+                                <td><%= transaction.getTransactionDate() != null ? dateFormat.format(transaction.getTransactionDate()) : "N/A" %></td>
                             </tr>
                             <% } %>
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">No transactions found for the selected period.</div>
+                    <% } %>
                 </div>
 
                 <% } else if ("inventory".equals(reportType)) { %>
@@ -222,6 +245,8 @@
                     </div>
 
                     <h3>Low Stock Items</h3>
+                    <% List<ReportItem> lowStockItems = reportDAO.getLowStockItems(5); %>
+                    <% if (lowStockItems != null && !lowStockItems.isEmpty()) { %>
                     <div class="table-container">
                         <table class="report-table">
                             <thead>
@@ -234,11 +259,11 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <% for (ReportItem item : reportDAO.getLowStockItems(5)) { %>
+                            <% for (ReportItem item : lowStockItems) { %>
                             <tr>
                                 <td><%= item.getItemId() %></td>
-                                <td><%= item.getItemName() %></td>
-                                <td><%= item.getCategoryName() %></td>
+                                <td><%= item.getItemName() != null ? item.getItemName() : "N/A" %></td>
+                                <td><%= item.getCategoryName() != null ? item.getCategoryName() : "N/A" %></td>
                                 <td>LKR <%= String.format("%.2f", item.getPrice()) %></td>
                                 <td class="<%= item.getStockQuantity() == 0 ? "text-danger" : "text-warning" %>">
                                     <%= item.getStockQuantity() %>
@@ -248,6 +273,9 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">No low stock items found.</div>
+                    <% } %>
                 </div>
 
                 <% } else if ("customer".equals(reportType)) { %>
@@ -275,6 +303,8 @@
                     </div>
 
                     <h3>Top Customers by Spending</h3>
+                    <% List<ReportItem> topCustomers = reportDAO.getTopSpendingCustomers(startDate, endDate, 10); %>
+                    <% if (topCustomers != null && !topCustomers.isEmpty()) { %>
                     <div class="table-container">
                         <table class="report-table">
                             <thead>
@@ -287,18 +317,21 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <% for (ReportItem customer : reportDAO.getTopSpendingCustomers(startDate, endDate, 10)) { %>
+                            <% for (ReportItem customer : topCustomers) { %>
                             <tr>
                                 <td><%= customer.getCustomerId() %></td>
-                                <td><%= customer.getCustomerName() %></td>
+                                <td><%= customer.getCustomerName() != null ? customer.getCustomerName() : "N/A" %></td>
                                 <td><%= customer.getTransactionCount() %></td>
                                 <td>LKR <%= String.format("%.2f", customer.getTotalSpent()) %></td>
-                                <td><%= dateFormat.format(customer.getLastTransactionDate()) %></td>
+                                <td><%= customer.getLastTransactionDate() != null ? dateFormat.format(customer.getLastTransactionDate()) : "N/A" %></td>
                             </tr>
                             <% } %>
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">No customer data found for the selected period.</div>
+                    <% } %>
                 </div>
 
                 <% } else if ("popular".equals(reportType)) { %>
@@ -309,7 +342,10 @@
                     <div class="summary-cards">
                         <div class="summary-card">
                             <h3>Most Sold Item</h3>
-                            <p><%= reportDAO.getTopSellingItems(startDate, endDate, 1).get(0).getItemName() %></p>
+                            <p>
+                                <% List<ReportItem> topItem = reportDAO.getTopSellingItems(startDate, endDate, 1); %>
+                                <%= !topItem.isEmpty() ? topItem.get(0).getItemName() : "N/A" %>
+                            </p>
                         </div>
                         <div class="summary-card">
                             <h3>Total Items Sold</h3>
@@ -326,6 +362,8 @@
                     </div>
 
                     <h3>Top Selling Items</h3>
+                    <% List<ReportItem> topItems = reportDAO.getTopSellingItems(startDate, endDate, 10); %>
+                    <% if (topItems != null && !topItems.isEmpty()) { %>
                     <div class="table-container">
                         <table class="report-table">
                             <thead>
@@ -338,11 +376,11 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <% for (ReportItem item : reportDAO.getTopSellingItems(startDate, endDate, 10)) { %>
+                            <% for (ReportItem item : topItems) { %>
                             <tr>
                                 <td><%= item.getItemId() %></td>
-                                <td><%= item.getItemName() %></td>
-                                <td><%= item.getCategoryName() %></td>
+                                <td><%= item.getItemName() != null ? item.getItemName() : "N/A" %></td>
+                                <td><%= item.getCategoryName() != null ? item.getCategoryName() : "N/A" %></td>
                                 <td><%= item.getQuantitySold() %></td>
                                 <td>LKR <%= String.format("%.2f", item.getTotalRevenue()) %></td>
                             </tr>
@@ -350,6 +388,9 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">No sales data found for the selected period.</div>
+                    <% } %>
                 </div>
                 <% } %>
             </div>
@@ -368,8 +409,6 @@
 
     // Initialize charts after page loads
     document.addEventListener('DOMContentLoaded', function() {
-        initializeCharts();
-
         // Update current date and time
         function updateDateTime() {
             const now = new Date();

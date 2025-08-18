@@ -68,7 +68,7 @@
 
         <!-- Content Wrapper -->
         <div class="content-wrapper">
-            <h1 class="page-title">Staff Billing</h1>
+            <h1 class="page-title">Items Billing</h1>
 
             <!-- Customer Section -->
             <div class="customer-section">

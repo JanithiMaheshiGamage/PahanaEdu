@@ -1503,3 +1503,33 @@ canvas {
     color: #ffc107;
     font-weight: 600;
 }
+.chart-loading, .chart-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+    font-size: 16px;
+    text-align: center;
+    padding: 20px;
+}
+.chart-error {
+    color: #dc3545;
+}
+.text-danger {
+    color: #dc3545;
+}
+.text-warning {
+    color: #ffc107;
+}
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+.alert-info {
+    color: #31708f;
+    background-color: #d9edf7;
+    border-color: #bce8f1;
+}

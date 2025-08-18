@@ -28,6 +28,13 @@ function initializeCharts() {
         }
     };
 
+    // Clear existing charts
+    Chart.getChart('salesChart')?.destroy();
+    Chart.getChart('paymentMethodChart')?.destroy();
+    Chart.getChart('inventoryChart')?.destroy();
+    Chart.getChart('customerChart')?.destroy();
+    Chart.getChart('popularItemsChart')?.destroy();
+
     // Initialize charts based on report type
     switch(window.reportData.reportType) {
         case 'sales':
@@ -52,6 +59,18 @@ function initializeCharts() {
         params.append('endDate', window.reportData.endDate);
 
         window.open(`${window.reportData.contextPath}/export/report?${params.toString()}`, '_blank');
+    });
+
+    // Form submission handler
+    document.getElementById('reportFilterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Get form data
+        const formData = new FormData(this);
+        const params = new URLSearchParams(formData);
+
+        // Reload page with new parameters
+        window.location.href = `${window.location.pathname}?${params.toString()}`;
     });
 }
 

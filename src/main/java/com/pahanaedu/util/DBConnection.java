@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 public class DBConnection {
     private static final Logger logger = Logger.getLogger(DBConnection.class.getName());
 
-    // Database configuration - consider moving these to a config file
+    // Database configuration
     private static final String URL = "jdbc:mysql://localhost:3306/pahana_edu";
     private static final String USER = "root";
     private static final String PASSWORD = "Sally(2000)";
@@ -19,7 +19,7 @@ public class DBConnection {
     // Static initializer to load the JDBC driver
     static {
         try {
-            // Newer versions of MySQL JDBC driver auto-register
+
             Class.forName("com.mysql.cj.jdbc.Driver");
             logger.info("MySQL JDBC Driver successfully loaded");
         } catch (ClassNotFoundException e) {

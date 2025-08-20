@@ -1,4 +1,4 @@
-# 📚 Pahana Edu Billing & Inventory Management System
+# 📚 Pahana Edu Online Billing System
 
 Pahana Edu is a popular bookshop in Colombo City, serving a large number of customers with educational books, novels, stationery, and other reading materials. To improve efficiency, accuracy, and customer experience, this project introduces a **web-based billing and inventory management system** to replace the existing manual process.
 

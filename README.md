@@ -58,6 +58,3 @@ This system addresses these issues by automating core business processes.
 - Improved decision-making
 - Enhanced customer satisfaction
 
----
-
-## 📂 Project Structure
